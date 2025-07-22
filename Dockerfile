@@ -3,7 +3,7 @@
 # =============================================================================
 
 # Build stage
-FROM python:3.12-slim as builder
+FROM python:3.12-slim AS builder
 
 # Install system dependencies for building
 RUN apt-get update && apt-get install -y \
@@ -29,14 +29,14 @@ WORKDIR /app
 COPY pyproject.toml poetry.lock ./
 
 # Install dependencies
-RUN --mount=type=cache,target=$POETRY_CACHE_DIR \
-    poetry install --only=main --no-dev && \
-    rm -rf $POETRY_CACHE_DIR
+RUN --mount=type=cache,target=/tmp/poetry_cache \
+    poetry install --only=main --no-root && \
+    rm -rf /tmp/poetry_cache
 
 # =============================================================================
 # Production stage
 # =============================================================================
-FROM python:3.12-slim as production
+FROM python:3.12-slim AS production
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y \
@@ -102,7 +102,7 @@ CMD ["bot"]
 # =============================================================================
 # Development stage
 # =============================================================================
-FROM builder as development
+FROM builder AS development
 
 # Install development dependencies
 RUN --mount=type=cache,target=$POETRY_CACHE_DIR \
