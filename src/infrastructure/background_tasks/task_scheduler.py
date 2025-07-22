@@ -262,6 +262,35 @@ async def main() -> None:
     # Load configuration
     settings = get_settings()
     
+    # Setup dependencies (same as main.py)
+    from src.domain.repositories import (
+        UserRepository, ProductRepository, OrderRepository,
+        ReferralRepository, InviteRepository, PromocodeRepository
+    )
+    from src.infrastructure.database.repositories import (
+        SqlAlchemyUserRepository, SqlAlchemyProductRepository, SqlAlchemyOrderRepository,
+        SqlAlchemyReferralRepository, SqlAlchemyInviteRepository, SqlAlchemyPromocodeRepository
+    )
+    from src.infrastructure.database import DatabaseManager
+    
+    # Register configuration
+    container.register_instance(type(settings), settings)
+    
+    # Register database manager
+    db_manager = DatabaseManager(settings.database)
+    container.register_instance(DatabaseManager, db_manager)
+    
+    # Register repositories
+    container.register_singleton(UserRepository, SqlAlchemyUserRepository)
+    container.register_singleton(ProductRepository, SqlAlchemyProductRepository)
+    container.register_singleton(OrderRepository, SqlAlchemyOrderRepository)
+    container.register_singleton(ReferralRepository, SqlAlchemyReferralRepository)
+    container.register_singleton(InviteRepository, SqlAlchemyInviteRepository)
+    container.register_singleton(PromocodeRepository, SqlAlchemyPromocodeRepository)
+    
+    # Initialize database
+    await db_manager.initialize()
+    
     # Create and configure scheduler
     scheduler = TaskScheduler()
     
