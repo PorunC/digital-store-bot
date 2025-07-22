@@ -280,13 +280,55 @@ async def main() -> None:
     db_manager = DatabaseManager(settings.database)
     container.register_instance(DatabaseManager, db_manager)
     
-    # Register repositories
-    container.register_singleton(UserRepository, SqlAlchemyUserRepository)
-    container.register_singleton(ProductRepository, SqlAlchemyProductRepository)
-    container.register_singleton(OrderRepository, SqlAlchemyOrderRepository)
-    container.register_singleton(ReferralRepository, SqlAlchemyReferralRepository)
-    container.register_singleton(InviteRepository, SqlAlchemyInviteRepository)
-    container.register_singleton(PromocodeRepository, SqlAlchemyPromocodeRepository)
+    # Register repository factories
+    def create_user_repository() -> UserRepository:
+        return SqlAlchemyUserRepository(db_manager.get_session())
+    
+    def create_product_repository() -> ProductRepository:
+        return SqlAlchemyProductRepository(db_manager.get_session())
+    
+    def create_order_repository() -> OrderRepository:
+        return SqlAlchemyOrderRepository(db_manager.get_session())
+    
+    def create_referral_repository() -> ReferralRepository:
+        return SqlAlchemyReferralRepository(db_manager.get_session())
+        
+    def create_invite_repository() -> InviteRepository:
+        return SqlAlchemyInviteRepository(db_manager.get_session())
+        
+    def create_promocode_repository() -> PromocodeRepository:
+        return SqlAlchemyPromocodeRepository(db_manager.get_session())
+    
+    def create_unit_of_work():
+        from src.domain.repositories.base import UnitOfWork
+        from src.infrastructure.database.unit_of_work import SqlAlchemyUnitOfWork
+        return SqlAlchemyUnitOfWork(db_manager.get_session())
+    
+    container.register_factory(UserRepository, create_user_repository)
+    container.register_factory(ProductRepository, create_product_repository)
+    container.register_factory(OrderRepository, create_order_repository)
+    container.register_factory(ReferralRepository, create_referral_repository)
+    container.register_factory(InviteRepository, create_invite_repository)
+    container.register_factory(PromocodeRepository, create_promocode_repository)
+    
+    # Register UnitOfWork factory
+    from src.domain.repositories.base import UnitOfWork
+    container.register_factory(UnitOfWork, create_unit_of_work)
+    
+    # Register application services
+    from src.application.services import (
+        OrderApplicationService,
+        PaymentApplicationService, 
+        UserApplicationService
+    )
+    
+    container.register_singleton(OrderApplicationService, OrderApplicationService)
+    container.register_singleton(PaymentApplicationService, PaymentApplicationService)
+    container.register_singleton(UserApplicationService, UserApplicationService)
+    
+    # Register notification service
+    from src.infrastructure.notifications.notification_service import NotificationService
+    container.register_singleton(NotificationService, NotificationService)
     
     # Initialize database
     await db_manager.initialize()

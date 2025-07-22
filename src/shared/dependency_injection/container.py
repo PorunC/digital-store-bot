@@ -96,13 +96,50 @@ class Container:
         """Create an instance with dependency injection."""
         constructor = implementation.__init__
         signature = inspect.signature(constructor)
-        type_hints = get_type_hints(constructor)
+        
+        # Try to get type hints safely with proper namespace resolution
+        type_hints = {}
+        try:
+            # First try with the implementation's module namespace
+            module = inspect.getmodule(implementation)
+            globalns = getattr(module, '__dict__', {}) if module else {}
+            
+            # Add common imports that might be missing
+            try:
+                # Import all of sqlalchemy.ext.asyncio into namespace
+                import sqlalchemy.ext.asyncio as asyncio_module
+                for attr_name in dir(asyncio_module):
+                    attr = getattr(asyncio_module, attr_name)
+                    if not attr_name.startswith('_') or attr_name in ['_AsyncSessionBind', '_SessionBindKey']:
+                        globalns[attr_name] = attr
+                        
+                # Also add some internal types that might be needed
+                try:
+                    from sqlalchemy.orm import Session
+                    globalns['Session'] = Session
+                except ImportError:
+                    pass
+                    
+            except ImportError:
+                pass
+                    
+            type_hints = get_type_hints(constructor, globalns=globalns)
+        except (NameError, AttributeError, TypeError) as e:
+            # If type hints still can't be resolved, use signature annotations directly
+            try:
+                # Fall back to raw annotations without evaluation
+                for param_name, param in signature.parameters.items():
+                    if param_name != "self" and param.annotation != inspect.Parameter.empty:
+                        type_hints[param_name] = param.annotation
+            except Exception:
+                pass
 
         kwargs = {}
         for param_name, param in signature.parameters.items():
             if param_name == "self":
                 continue
 
+            # First try to get from resolved type hints, then fall back to annotation
             param_type = type_hints.get(param_name, param.annotation)
             if param_type == inspect.Parameter.empty:
                 if param.default != inspect.Parameter.empty:
