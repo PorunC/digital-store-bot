@@ -1,5 +1,6 @@
 """Telegram bot implementation."""
 
+import asyncio
 import logging
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
@@ -57,8 +58,55 @@ class TelegramBot:
     async def _start_webhook(self) -> None:
         """Start bot in webhook mode."""
         logger.info("Starting bot in webhook mode")
-        # TODO: Implement webhook setup
-        pass
+        from aiohttp import web, ClientSession
+        from aiohttp.web import run_app
+        
+        # Set webhook
+        webhook_url = self.settings.external.webhook_url
+        if webhook_url:
+            async with ClientSession() as session:
+                # Remove existing webhook first
+                await self.bot.delete_webhook()
+                # Set new webhook
+                await self.bot.set_webhook(
+                    url=f"{webhook_url}/webhook",
+                    secret_token=self.settings.external.webhook_secret
+                )
+                logger.info(f"Webhook set to {webhook_url}/webhook")
+        
+        # Create web application
+        app = web.Application()
+        
+        # Add webhook route
+        async def webhook_handler(request):
+            data = await request.json()
+            # Process update through dispatcher
+            await self.dispatcher.feed_webhook_update(self.bot, data)
+            return web.Response()
+        
+        # Add health check route
+        async def health_handler(request):
+            return web.json_response({"status": "healthy"})
+        
+        app.router.add_post("/webhook", webhook_handler)
+        app.router.add_get("/health", health_handler)
+        
+        # Start web server
+        runner = web.AppRunner(app)
+        await runner.setup()
+        
+        site = web.TCPSite(runner, '0.0.0.0', 8000)
+        await site.start()
+        
+        logger.info("Webhook server started on port 8000")
+        
+        # Keep running
+        try:
+            while True:
+                await asyncio.sleep(1)
+        except KeyboardInterrupt:
+            logger.info("Shutting down webhook server")
+            await runner.cleanup()
 
     async def stop(self) -> None:
         """Stop the bot."""

@@ -7,7 +7,7 @@ from src.domain.entities.order import Order, PaymentMethod
 from src.domain.repositories.order_repository import OrderRepository
 from src.domain.repositories.base import UnitOfWork
 from src.infrastructure.external.payment_gateways.factory import PaymentGatewayFactory
-from src.infrastructure.external.payment_gateways.base import PaymentGateway, PaymentRequest, PaymentResult
+from src.infrastructure.external.payment_gateways.base import PaymentGateway, PaymentData, PaymentResult
 from src.shared.events import event_bus
 
 
@@ -43,19 +43,21 @@ class PaymentApplicationService:
             # Get appropriate payment gateway
             gateway = self.payment_gateway_factory.get_gateway(payment_method)
             
-            # Create payment request
-            payment_request = PaymentRequest(
+            # Create payment data
+            payment_data = PaymentData(
                 order_id=order_id,
+                user_id=str(order.user_id),
+                product_id=order.product_id,
                 amount=order.amount.amount,
                 currency=order.amount.currency,
                 description=f"Payment for {order.product_name}",
-                customer_id=str(order.user_id),
+                user_telegram_id=order.user_telegram_id,
                 return_url=return_url,
                 metadata=metadata or {}
             )
 
             # Process payment through gateway
-            result = await gateway.create_payment(payment_request)
+            result = await gateway.create_payment(payment_data)
 
             if result.success:
                 # Update order with payment information
