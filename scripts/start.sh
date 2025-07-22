@@ -136,16 +136,18 @@ if not asyncio.run(run_migrations()):
 init_directories() {
     log_info "Initializing data directories..."
     
-    # Create required directories
-    mkdir -p /app/data/backups
-    mkdir -p /app/logs
-    mkdir -p /app/static
-    mkdir -p /app/templates
+    # Create required directories only if they don't exist and we have permission
+    if [ -w "/app/data" ]; then
+        mkdir -p /app/data/backups 2>/dev/null || log_warning "Could not create /app/data/backups"
+    fi
     
-    # Set permissions
-    chmod 755 /app/data /app/logs
+    if [ -w "/app" ]; then
+        mkdir -p /app/logs 2>/dev/null || log_warning "Could not create /app/logs"
+        mkdir -p /app/static 2>/dev/null || log_warning "Could not create /app/static" 
+        mkdir -p /app/templates 2>/dev/null || log_warning "Could not create /app/templates"
+    fi
     
-    log_success "Data directories initialized"
+    log_success "Data directories checked"
 }
 
 # Create default configuration files

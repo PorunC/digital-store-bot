@@ -62,10 +62,9 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
-      - ./scripts/postgres.conf:/etc/postgresql/postgresql.conf:ro
     ports:
-      - "127.0.0.1:5432:5432"
-    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
+      - "127.0.0.1:5433:5432"  # 注释掉避免端口冲突
+    # command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]  # 移除自定义配置文件
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U botuser -d digital_store_bot"]
       interval: 30s
@@ -80,9 +79,8 @@ services:
     command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru --save 900 1 --save 300 10 --save 60 10000
     volumes:
       - redis_data:/data
-      - ./scripts/redis.conf:/usr/local/etc/redis/redis.conf:ro
     ports:
-      - "127.0.0.1:6379:6379"
+      - "127.0.0.1:6380:6379"  # 注释掉避免端口冲突
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 30s

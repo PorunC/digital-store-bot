@@ -12,16 +12,8 @@ SET timezone = 'UTC';
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- Set up database configuration for better performance
-ALTER DATABASE digital_store_bot SET log_statement = 'none';
-ALTER DATABASE digital_store_bot SET log_min_duration_statement = 1000;
-ALTER DATABASE digital_store_bot SET shared_preload_libraries = '';
-
--- Create initial schemas if needed (Alembic will handle table creation)
--- These are just for reference and will be managed by Alembic migrations
-
--- Grant necessary permissions
-GRANT ALL PRIVILEGES ON DATABASE digital_store_bot TO botuser;
+-- Database configuration will be set after creation
+-- Grant necessary permissions (database name comes from POSTGRES_DB env var)
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO botuser;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO botuser;
 GRANT ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public TO botuser;
