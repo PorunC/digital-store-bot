@@ -1,85 +1,47 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with this Digital Store Bot v2 project.
-
-## 🏗️ Architecture Overview
-
-This is a **Domain-Driven Design (DDD)** implementation of a Telegram e-commerce bot with **high decoupling** and **clean architecture**. The project addresses the coupling issues found in the original 3xui-shop project.
-
-### Key Architectural Patterns
-
-- **Domain-Driven Design**: Clear business boundaries with entities, value objects, and domain services
-- **Dependency Injection**: Using `dependency-injector` for loose coupling
-- **Event-Driven Architecture**: Domain events for service communication
-- **Repository Pattern**: Data access abstraction
-- **Unit of Work**: Transaction management
-- **Hexagonal Architecture**: Ports and adapters pattern
-
-## 📁 Project Structure
-
-```
-src/
-├── domain/                    # Business logic layer
-│   ├── entities/             # Business entities (User, Product, Order)
-│   ├── value_objects/        # Immutable value objects (Money, UserProfile)
-│   ├── repositories/         # Repository interfaces
-│   ├── services/             # Domain services
-│   └── events/               # Domain events
-├── application/              # Application layer
-│   ├── commands/             # Command handlers (CQRS)
-│   ├── queries/              # Query handlers (CQRS)
-│   ├── handlers/             # Event handlers
-│   └── services/             # Application services
-├── infrastructure/           # Infrastructure layer
-│   ├── database/             # SQLAlchemy implementation
-│   ├── external/             # External service adapters
-│   ├── messaging/            # Message bus implementation
-│   └── configuration/        # Configuration management
-├── presentation/             # Presentation layer
-│   ├── telegram/             # Telegram bot interface
-│   ├── web/                  # Web API (if needed)
-│   └── cli/                  # CLI interface
-└── shared/                   # Shared kernel
-    ├── events/               # Event system
-    ├── dependency_injection/ # DI framework
-    └── exceptions/           # Custom exceptions
-```
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## 🚀 Essential Commands
 
 ### Development Setup
 ```bash
-# Install dependencies
-poetry install
-
-# Setup project (creates config files, pre-commit hooks)
+# Install dependencies and setup project
 ./scripts/setup.sh
+
+# Install dependencies only
+poetry install
 
 # Run the application
 poetry run python -m src.main
 
-# Run in development mode with auto-reload
+# Run in development with auto-reload
 poetry run python -m src.main --dev
 ```
 
 ### Testing
 ```bash
-# Run all tests
+# Run all tests with coverage
 poetry run pytest
 
-# Run tests with coverage
-poetry run pytest --cov=src --cov-report=html
+# Run specific test markers
+poetry run pytest -m unit
+poetry run pytest -m integration
+poetry run pytest -m "not slow"
+
+# Run tests without coverage (faster)
+poetry run pytest --no-cov
 
 # Run specific test file
-poetry run pytest tests/test_example.py
+poetry run pytest tests/unit/domain/test_user.py
 
 # Run tests matching pattern
-poetry run pytest -k "test_user"
+poetry run pytest -k "test_subscription"
 ```
 
 ### Code Quality
 ```bash
-# Format code
+# Format code (line length: 100)
 poetry run black src tests
 
 # Sort imports
@@ -97,136 +59,181 @@ poetry run pre-commit run --all-files
 
 ### Database Operations
 ```bash
-# Create migration
-poetry run alembic revision --autogenerate -m "Description"
+# Create new migration
+poetry run python -m src.infrastructure.database.migrations.migration_manager create "migration_description"
 
 # Apply migrations
-poetry run alembic upgrade head
+poetry run python -m src.infrastructure.database.migrations.migration_manager upgrade
 
-# Rollback migration
-poetry run alembic downgrade -1
+# Rollback migration  
+poetry run python -m src.infrastructure.database.migrations.migration_manager downgrade
 ```
+
+### Docker Operations
+```bash
+# Build and start all services
+docker compose up -d
+
+# View bot logs
+docker compose logs -f bot
+
+# Start with monitoring stack
+docker compose --profile monitoring up -d
+
+# Stop all services
+docker compose down
+
+# Rebuild containers
+docker compose build --no-cache
+```
+
+## 🏗️ Architecture Overview
+
+This is a **Domain-Driven Design (DDD)** implementation with **clean architecture** principles, addressing coupling issues from the original 3xui-shop project.
+
+### Core Patterns
+
+- **Domain-Driven Design**: Clear business boundaries with entities, value objects, and domain services
+- **Dependency Injection**: Custom container with automatic resolution via `@inject` decorator
+- **Event-Driven Architecture**: Domain events with async event bus for service communication
+- **CQRS**: Separate command and query handlers for clear responsibility separation
+- **Repository Pattern**: Data access abstraction with interface-based contracts
+- **Hexagonal Architecture**: Ports and adapters pattern with dependency inversion
+
+### Layer Structure
+
+```
+src/
+├── domain/                    # Business logic (no external dependencies)
+│   ├── entities/             # Rich domain objects (User, Order, Product)
+│   ├── value_objects/        # Immutable objects (Money, UserProfile)
+│   ├── repositories/         # Abstract data access interfaces
+│   ├── services/             # Domain services for complex business rules
+│   └── events/               # Domain events for state changes
+├── application/              # Application orchestration
+│   ├── commands/             # State-changing operations
+│   ├── queries/              # Read-only data retrieval
+│   ├── handlers/             # Command/query processors
+│   └── services/             # Application workflow coordination
+├── infrastructure/           # Technical implementation
+│   ├── database/             # SQLAlchemy repositories and migrations
+│   ├── external/             # Payment gateways (Cryptomus, Telegram Stars)
+│   ├── background_tasks/     # Scheduled jobs and cleanup
+│   └── configuration/        # Settings management
+├── presentation/             # User interfaces
+│   ├── telegram/             # Aiogram bot with handlers and middleware
+│   ├── web/                  # Admin panel
+│   └── webhooks/             # Payment callback processing
+└── shared/                   # Cross-cutting concerns
+    ├── dependency_injection/ # DI container and decorators
+    ├── events/               # Event bus and base event classes
+    └── exceptions/           # Custom exception types
+```
+
+### Key Components
+
+- **DI Container** (`src/shared/dependency_injection/container.py`): Type-based dependency resolution with singleton/factory patterns
+- **Event Bus** (`src/shared/events/bus.py`): Async in-memory event dispatcher for loose coupling
+- **Database Manager** (`src/infrastructure/database/manager.py`): Connection pooling and session management
+- **Configuration System** (`src/infrastructure/configuration/settings.py`): Pydantic-based settings with YAML/ENV support
+- **Payment Gateway Factory** (`src/infrastructure/external/payment_gateways/factory.py`): Pluggable payment processing
 
 ## 🔧 Configuration Management
 
-The application uses **modular configuration** with Pydantic Settings:
+Configuration uses **modular YAML** with environment overrides:
 
-- **Main config**: `config/settings.yml` - YAML-based configuration
-- **Environment override**: `.env` file for secrets and environment-specific settings
-- **Settings classes**: Organized by domain (BotConfig, DatabaseConfig, etc.)
+- **Primary config**: `config/settings.yml` (copy from `settings.example.yml`)
+- **Environment variables**: `.env` file for secrets and overrides
+- **Docker environment**: Environment variables in `docker-compose.yml`
 
-Example configuration access:
-```python
-from infrastructure.configuration import get_settings
+Key sections:
+- `bot`: Telegram bot token and admin settings  
+- `database`: Connection settings (SQLite/PostgreSQL)
+- `redis`: Caching and event storage
+- `payments`: Gateway configuration (Cryptomus, Telegram Stars)
+- `shop`: Business logic (trial periods, referral rates)
 
-settings = get_settings()
-bot_token = settings.bot.token
-db_url = settings.database.get_url()
-```
+## 📡 Dependency Injection Usage
 
-## 🔄 Dependency Injection Usage
-
-The DI container manages all dependencies:
+The DI system enables constructor injection with automatic resolution:
 
 ```python
-from shared.dependency_injection import container, inject
+from src.shared.dependency_injection import container, inject
 
-# Register dependencies
+# Register dependencies (done in main.py)
 container.register_singleton(UserRepository, SqlAlchemyUserRepository)
 
-# Inject dependencies
+# Automatic injection
 @inject
-def my_service(user_repo: UserRepository) -> None:
-    users = await user_repo.get_all()
+async def my_handler(user_repo: UserRepository) -> None:
+    user = await user_repo.get_by_id("123")
 ```
 
-## 📡 Event System Usage
+## 🎯 Event System Usage
 
-Domain events enable loose coupling between services:
+Domain events enable decoupled communication between services:
 
 ```python
-from shared.events import event_bus
-from domain.events import UserRegistered
+from src.shared.events import event_bus
+from src.domain.events.user_events import UserRegistered
 
-# Publish event
-event = UserRegistered.create(user_id="123", telegram_id=456789)
-await event_bus.publish(event)
+# Publish from entity
+user.add_domain_event(UserRegistered.create(user_id="123"))
+await event_bus.publish_many(user.get_domain_events())
 
-# Handle event
+# Handle events
 @event_handler("UserRegistered")
-class SendWelcomeMessage:
-    async def handle(self, event: DomainEvent) -> None:
-        # Send welcome message logic
-        pass
+class WelcomeMessageHandler:
+    @inject
+    async def handle(self, event: UserRegistered, notification_service: NotificationService) -> None:
+        await notification_service.send_welcome_message(event.user_id)
 ```
 
-## 🏛️ Key Design Principles
+## 🏛️ Development Guidelines
 
-### 1. **Dependency Inversion**
-- High-level modules don't depend on low-level modules
-- Both depend on abstractions (interfaces)
-- Use `@inject` decorator for automatic dependency injection
+### Adding New Features
 
-### 2. **Single Responsibility**
-- Each class has one reason to change
-- Separate business logic from infrastructure concerns
-- Use domain services for complex business rules
+1. **Domain First**: Create entities, value objects, and domain events in `src/domain/`
+2. **Application Layer**: Add commands/queries and handlers in `src/application/`
+3. **Infrastructure**: Implement repositories and external service adapters
+4. **Presentation**: Add Telegram handlers or web endpoints
+5. **Register Dependencies**: Update DI container registrations in `main.py`
 
-### 3. **Open/Closed Principle**
-- Open for extension, closed for modification
-- Use strategy pattern for payment gateways
-- Event-driven architecture for adding new features
+### Database Changes
 
-### 4. **Event-Driven Communication**
-- Services communicate through domain events
-- Avoid direct service-to-service calls
-- Use event handlers for side effects
+1. Modify models in `src/infrastructure/database/models/`
+2. Create migration: `poetry run python -m src.infrastructure.database.migrations.migration_manager create "description"`
+3. Apply migration: `poetry run python -m src.infrastructure.database.migrations.migration_manager upgrade`
 
-## 📝 Common Development Patterns
+### Payment Gateway Integration
 
-### Adding a New Entity
-1. Create entity in `src/domain/entities/`
-2. Define repository interface in `src/domain/repositories/`
-3. Implement repository in `src/infrastructure/database/`
-4. Create domain events in `src/domain/events/`
-5. Add migration for database schema
+1. Implement `PaymentGateway` interface from `src/infrastructure/external/payment_gateways/base.py`
+2. Register in factory (`src/infrastructure/external/payment_gateways/factory.py`)
+3. Add webhook handling if needed
+4. Update configuration schema
 
-### Adding a New Feature
-1. Create command/query in `src/application/`
-2. Implement handler in `src/application/handlers/`
-3. Add presentation layer in `src/presentation/telegram/`
-4. Register dependencies in DI container
-5. Write tests for all layers
+### Testing Strategy
 
-### Adding External Integration
-1. Define port (interface) in `src/domain/`
-2. Create adapter in `src/infrastructure/external/`
-3. Register in DI container
-4. Use events for integration points
+- **Unit Tests**: Test domain logic in isolation (`tests/unit/domain/`)
+- **Integration Tests**: Test repository implementations (`tests/integration/`)
+- **Application Tests**: Test command/query handlers end-to-end
+- **Use factories**: Create test data with `factory-boy` patterns
 
-## 🧪 Testing Strategy
+## ⚠️ Important Constraints
 
-- **Unit Tests**: Test domain logic in isolation
-- **Integration Tests**: Test repository implementations
-- **Application Tests**: Test command/query handlers
-- **End-to-End Tests**: Test complete user journeys
-- **Mock external dependencies** using `pytest-mock`
+- **Dependency Rule**: Never import infrastructure from domain layer
+- **Event Publishing**: Always publish domain events for important business actions
+- **Immutable Value Objects**: Use `frozen=True` for value object dataclasses
+- **Async Everywhere**: All I/O operations must use async/await
+- **Type Safety**: Extensive type hints required, mypy must pass
+- **Interface Segregation**: Depend on abstractions, not concrete implementations
 
-## 🚨 Important Notes
+## 🚨 Common Issues
 
-- **Never import infrastructure from domain layer**
-- **Use dependency injection** instead of direct instantiation
-- **Publish domain events** for all important business actions
-- **Keep value objects immutable** (frozen=True)
-- **Use async/await** for all I/O operations
-- **Follow the dependency rule**: dependencies point inward toward the domain
+- **Missing Dependencies**: Check DI container registrations in `main.py`
+- **Event Handler Not Triggered**: Verify handler is registered with `@event_handler` decorator
+- **Migration Conflicts**: Always create migrations on feature branches
+- **Configuration Errors**: Validate settings loading order (YAML → ENV → defaults)
+- **Circular Dependencies**: Resolve through interfaces and dependency injection
 
-## 🔍 Debugging Tips
-
-- Check DI container registrations for missing dependencies
-- Verify event handlers are properly registered
-- Use logging extensively (configured in settings.yml)
-- Check configuration loading order (YAML → ENV → defaults)
-- Validate database connections and migrations
-
-This architecture ensures **high maintainability**, **testability**, and **extensibility** while solving the coupling issues present in the original project.
+This architecture ensures high maintainability, testability, and extensibility while maintaining clean separation of concerns and business logic isolation.

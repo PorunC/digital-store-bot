@@ -242,3 +242,62 @@ class TaskScheduler:
             "running_tasks": running_count,
             "uptime": datetime.utcnow().isoformat() if self.running else None
         }
+
+
+async def main() -> None:
+    """Main entry point for task scheduler service."""
+    import signal
+    import sys
+    from src.infrastructure.configuration import get_settings
+    from src.shared.dependency_injection import container
+    
+    # Setup logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s | %(name)s | %(levelname)s | %(message)s"
+    )
+    logger = logging.getLogger(__name__)
+    logger.info("Starting Task Scheduler Service")
+    
+    # Load configuration
+    settings = get_settings()
+    
+    # Create and configure scheduler
+    scheduler = TaskScheduler()
+    
+    # Add payment cleanup task
+    from .payment_tasks import cleanup_expired_payments
+    scheduler.add_task(
+        name="payment_cleanup",
+        func=cleanup_expired_payments,
+        interval=timedelta(minutes=15)
+    )
+    
+    # Graceful shutdown handler
+    def signal_handler(signum, frame):
+        logger.info("Received shutdown signal, stopping scheduler...")
+        asyncio.create_task(scheduler.stop())
+    
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    
+    try:
+        # Start scheduler
+        await scheduler.start()
+        logger.info("Task scheduler started successfully")
+        
+        # Keep running
+        while scheduler.running:
+            await asyncio.sleep(1)
+            
+    except KeyboardInterrupt:
+        logger.info("Received keyboard interrupt")
+    except Exception as e:
+        logger.error(f"Scheduler error: {e}", exc_info=True)
+    finally:
+        await scheduler.stop()
+        logger.info("Task scheduler stopped")
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

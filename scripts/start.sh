@@ -222,7 +222,7 @@ start_service() {
             ;;
         "scheduler")
             log_info "Starting Task Scheduler..."
-            exec python -m src.infrastructure.background_tasks.scheduler
+            exec python -m src.infrastructure.background_tasks.task_scheduler
             ;;
         "worker")
             log_info "Starting Background Worker..."
