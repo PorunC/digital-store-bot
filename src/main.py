@@ -5,11 +5,11 @@ import logging
 import sys
 from pathlib import Path
 
-from infrastructure.configuration import get_settings
-from infrastructure.database import DatabaseManager
-from presentation.telegram import TelegramBot
-from shared.dependency_injection import container
-from shared.events import event_bus
+from src.infrastructure.configuration import get_settings
+from src.infrastructure.database import DatabaseManager
+from src.presentation.telegram import TelegramBot
+from src.shared.dependency_injection import container
+from src.shared.events import event_bus
 
 
 async def setup_logging(settings) -> None:

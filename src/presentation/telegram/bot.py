@@ -5,8 +5,8 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 
-from infrastructure.configuration.settings import Settings
-from shared.dependency_injection import inject
+from src.infrastructure.configuration.settings import Settings
+from src.shared.dependency_injection import inject
 
 logger = logging.getLogger(__name__)
 
