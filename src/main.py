@@ -106,6 +106,41 @@ async def setup_dependencies() -> None:
     # Register UnitOfWork factory
     from src.domain.repositories.base import UnitOfWork
     container.register_factory(UnitOfWork, create_unit_of_work)
+    
+    # Register application services
+    from src.application.services import (
+        UserApplicationService,
+        ProductApplicationService,
+        OrderApplicationService,
+        PaymentApplicationService,
+        ReferralApplicationService,
+        PromocodeApplicationService,
+        TrialApplicationService
+    )
+    
+    container.register_singleton(UserApplicationService, UserApplicationService)
+    container.register_singleton(ProductApplicationService, ProductApplicationService)
+    container.register_singleton(OrderApplicationService, OrderApplicationService)
+    container.register_singleton(PaymentApplicationService, PaymentApplicationService)
+    container.register_singleton(ReferralApplicationService, ReferralApplicationService)
+    container.register_singleton(PromocodeApplicationService, PromocodeApplicationService)
+    container.register_singleton(TrialApplicationService, TrialApplicationService)
+    
+    # Register payment gateway factory
+    from src.infrastructure.external.payment_gateways.factory import PaymentGatewayFactory
+    def create_payment_gateway_factory() -> PaymentGatewayFactory:
+        # Bot will be available in the container when needed
+        from aiogram import Bot
+        try:
+            bot = container.resolve(Bot)
+        except:
+            bot = None
+        return PaymentGatewayFactory(settings, bot)
+    container.register_factory(PaymentGatewayFactory, create_payment_gateway_factory)
+    
+    # Register notification service
+    from src.infrastructure.notifications.notification_service import NotificationService
+    container.register_singleton(NotificationService, NotificationService)
 
 
 async def main() -> None:
@@ -130,9 +165,14 @@ async def main() -> None:
         db_manager = container.resolve(DatabaseManager)
         await db_manager.initialize()
         
-        # Start Telegram bot
-        bot = TelegramBot(settings)
-        await bot.start()
+        # Start Telegram bot and register bot instance in container
+        telegram_bot = TelegramBot(settings)
+        
+        # Register the bot instance in the container for payment gateways
+        from aiogram import Bot
+        container.register_instance(Bot, telegram_bot.bot)
+        
+        await telegram_bot.start()
         
     except KeyboardInterrupt:
         if logger:
