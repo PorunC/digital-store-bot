@@ -1,7 +1,10 @@
 """Database manager for SQLAlchemy."""
 
+from __future__ import annotations
+
 import logging
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from typing import Optional
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
 from src.infrastructure.configuration.settings import DatabaseConfig
@@ -19,8 +22,8 @@ class DatabaseManager:
 
     def __init__(self, config: DatabaseConfig):
         self.config = config
-        self._engine = None
-        self._session_factory = None
+        self._engine: Optional[AsyncEngine] = None
+        self._session_factory: Optional[async_sessionmaker[AsyncSession]] = None
 
     async def initialize(self) -> None:
         """Initialize database engine and session factory."""
@@ -78,11 +81,11 @@ class DatabaseManager:
             logger.info("Database connections closed")
 
     @property
-    def engine(self):
+    def engine(self) -> Optional[AsyncEngine]:
         """Get the database engine."""
         return self._engine
 
     @property
-    def session_factory(self):
+    def session_factory(self) -> Optional[async_sessionmaker[AsyncSession]]:
         """Get the session factory."""
         return self._session_factory

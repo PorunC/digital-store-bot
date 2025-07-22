@@ -1,5 +1,7 @@
 """Migration manager for database schema evolution."""
 
+from __future__ import annotations
+
 import logging
 import importlib
 import inspect
@@ -8,7 +10,7 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional, Type
 
 from sqlalchemy import text, Table, Column, String, DateTime, Boolean, MetaData
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from sqlalchemy.exc import SQLAlchemyError
 
 from .base_migration import BaseMigration
@@ -22,7 +24,7 @@ class MigrationManager:
     def __init__(self, database_url: str, migrations_path: str = "migrations"):
         self.database_url = database_url
         self.migrations_path = Path(migrations_path)
-        self.engine = create_async_engine(database_url)
+        self.engine: AsyncEngine = create_async_engine(database_url)
         
         # Migration tracking table
         self.migration_table = Table(
