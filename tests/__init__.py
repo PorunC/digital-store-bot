@@ -1,0 +1,1 @@
+"""Test suite for Digital Store Bot v2."""

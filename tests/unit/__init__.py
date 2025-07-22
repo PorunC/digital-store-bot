@@ -1,0 +1,1 @@
+"""Unit tests for Digital Store Bot v2."""
