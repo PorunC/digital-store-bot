@@ -26,10 +26,11 @@ ENV POETRY_NO_INTERACTION=1 \
 
 # Copy dependency files
 WORKDIR /app
-COPY pyproject.toml poetry.lock ./
+COPY pyproject.toml ./
 
-# Install dependencies
+# Generate lock file and install dependencies
 RUN --mount=type=cache,target=/tmp/poetry_cache \
+    poetry lock --no-update && \
     poetry install --only=main --no-root
 
 # =============================================================================
@@ -51,10 +52,11 @@ RUN apt-get update && apt-get install -y \
 RUN pip install --no-cache-dir poetry==1.7.1
 
 # Copy dependency files
-COPY pyproject.toml poetry.lock ./
+COPY pyproject.toml ./
 
 # Install dependencies globally (no virtual env)
 RUN poetry config virtualenvs.create false && \
+    poetry lock --no-update && \
     poetry install --only=main --no-root
 
 # Set working directory
