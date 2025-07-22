@@ -47,10 +47,15 @@ RUN apt-get update && apt-get install -y \
     && groupadd -r botuser \
     && useradd -r -g botuser -d /app -s /bin/bash botuser
 
-# Copy virtual environment from builder stage
-ENV VIRTUAL_ENV=/app/.venv
-COPY --from=builder ${VIRTUAL_ENV} ${VIRTUAL_ENV}
-ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+# Install Poetry and dependencies directly in production
+RUN pip install --no-cache-dir poetry==1.7.1
+
+# Copy dependency files
+COPY pyproject.toml poetry.lock ./
+
+# Install dependencies globally (no virtual env)
+RUN poetry config virtualenvs.create false && \
+    poetry install --only=main --no-root
 
 # Set working directory
 WORKDIR /app
@@ -59,7 +64,7 @@ WORKDIR /app
 COPY --chown=botuser:botuser src/ src/
 COPY --chown=botuser:botuser config/ config/
 COPY --chown=botuser:botuser data/ data/
-COPY --chown=botuser:botuser pyproject.toml pytest.ini ./
+COPY --chown=botuser:botuser pytest.ini ./
 COPY --chown=botuser:botuser .env.example ./
 
 # Create necessary directories with proper permissions
