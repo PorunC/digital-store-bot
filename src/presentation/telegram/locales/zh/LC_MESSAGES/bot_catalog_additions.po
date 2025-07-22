@@ -1,0 +1,98 @@
+# Additional Chinese translations for catalog functionality
+# Copyright (C) 2024 snoups
+# This file is distributed under the same license as the bot project.
+
+msgid ""
+msgstr ""
+"Project-Id-Version: bot 0.1\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2025-04-30 08:19+0500\n"
+"PO-Revision-Date: 2024-12-05 10:24+0500\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: zh\n"
+"Language-Team: zh <LL@li.org>\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.17.0\n"
+
+# Main menu button - replace subscription with catalog
+msgid "main_menu:button:catalog"
+msgstr "🛍️ 商品目录"
+
+# Catalog functionality
+msgid "catalog:message:main"
+msgstr "🛍️ <b>商品目录</b>\n\n按类别浏览我们的数字产品或直接购买："
+
+msgid "catalog:button:software"
+msgstr "💻 软件"
+
+msgid "catalog:button:gaming"
+msgstr "🎮 游戏"
+
+msgid "catalog:button:subscription"
+msgstr "📺 订阅服务"
+
+msgid "catalog:button:digital"
+msgstr "📁 数字内容"
+
+msgid "catalog:button:education"
+msgstr "🎓 教育"
+
+msgid "catalog:button:buy_products"
+msgstr "💳 购买商品"
+
+msgid "catalog:button:buy_now"
+msgstr "💰 立即购买"
+
+msgid "catalog:message:category"
+msgstr "📦 <b>{category}商品</b>\n\n在此类别中找到{count}个商品："
+
+msgid "catalog:message:no_products_in_category"
+msgstr "😔 {category}类别中暂无可用商品。"
+
+msgid "catalog:message:product_details"
+msgstr "📦 <b>{name}</b>\n\n{description}\n\n💰 <b>价格：</b>{price} {currency}\n🏷️ <b>类别：</b>{category}\n\n✨ <b>特性：</b>\n{features}"
+
+msgid "catalog:message:product_not_found"
+msgstr "❌ 未找到商品。"
+
+msgid "catalog:message:no_features"
+msgstr "未列出具体特性。"
+
+# Category names
+msgid "catalog:category:software"
+msgstr "软件"
+
+msgid "catalog:category:gaming"
+msgstr "游戏"
+
+msgid "catalog:category:subscription"
+msgstr "订阅服务"
+
+msgid "catalog:category:digital"
+msgstr "数字内容"
+
+msgid "catalog:category:education"
+msgstr "教育"
+
+# Profile enhancements
+msgid "profile:button:my_orders"
+msgstr "📦 我的订单"
+
+msgid "profile:button:browse_catalog"
+msgstr "🛍️ 浏览目录"
+
+msgid "profile:message:orders"
+msgstr "📦 <b>您的订单：</b>\n\n🛍️ 商品：{product_name}\n📊 状态：{status}\n📅 到期：{expires_at}\n⏰ 剩余天数：{days_remaining}"
+
+msgid "profile:message:no_orders"
+msgstr "📦 您还没有订单。\n\n浏览我们的目录寻找优质数字产品！"
+
+msgid "profile:message:no_purchased_products"
+msgstr "🛍️ 您还没有购买任何商品。\n\n查看我们的目录获取精彩数字商品！"
+
+# Admin tools update
+msgid "admin_tools:button:product_management"
+msgstr "📦 商品管理"
