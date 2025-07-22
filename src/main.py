@@ -24,16 +24,21 @@ async def setup_logging(settings) -> None:
     )
     
     if settings.logging.file_enabled:
-        log_path = Path(settings.logging.file_path)
-        log_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        file_handler = logging.handlers.RotatingFileHandler(
-            log_path,
-            maxBytes=settings.logging.file_max_bytes,
-            backupCount=settings.logging.file_backup_count
-        )
-        file_handler.setFormatter(logging.Formatter(settings.logging.format))
-        logging.getLogger().addHandler(file_handler)
+        try:
+            log_path = Path(settings.logging.file_path)
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            file_handler = logging.handlers.RotatingFileHandler(
+                log_path,
+                maxBytes=settings.logging.file_max_bytes,
+                backupCount=settings.logging.file_backup_count
+            )
+            file_handler.setFormatter(logging.Formatter(settings.logging.format))
+            logging.getLogger().addHandler(file_handler)
+        except (PermissionError, OSError) as e:
+            # If we can't write to the log file, continue with console logging only
+            print(f"Warning: Could not setup file logging: {e}. Using console logging only.")
+            pass
 
 
 async def setup_dependencies() -> None:

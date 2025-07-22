@@ -102,8 +102,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 # Use startup script as entrypoint
 ENTRYPOINT ["/usr/local/bin/start.sh"]
 
-# Default command
-CMD ["bot"]
+# No default command - use SERVICE_TYPE environment variable instead
 
 # =============================================================================
 # Development stage

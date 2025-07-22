@@ -207,7 +207,7 @@ EOF
 
 # Start the appropriate service
 start_service() {
-    local service_type="${1:-${SERVICE_TYPE:-bot}}"
+    local service_type="${SERVICE_TYPE:-bot}"
     
     log_info "Starting service: $service_type"
     
@@ -268,8 +268,8 @@ main() {
     # Create default configs
     create_default_configs
     
-    # Start the service
-    start_service "$@"
+    # Start the service (use environment variable, ignore command line args)
+    start_service
 }
 
 # Handle signals gracefully
