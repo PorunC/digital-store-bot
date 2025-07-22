@@ -4,4 +4,7 @@ from .container import Container
 from .decorators import inject
 from .protocols import Injectable
 
-__all__ = ["Container", "inject", "Injectable"]
+# Create global container instance
+container = Container()
+
+__all__ = ["Container", "container", "inject", "Injectable"]

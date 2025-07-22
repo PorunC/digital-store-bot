@@ -140,6 +140,6 @@ class Container:
         self._factories.clear()
         self._resolving.clear()
 
-
-# Global container instance
-container = Container()
+    def get(self, interface: Type[T]) -> T:
+        """Alias for resolve() method."""
+        return self.resolve(interface)

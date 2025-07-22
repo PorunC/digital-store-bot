@@ -266,10 +266,12 @@ async def main() -> None:
     scheduler = TaskScheduler()
     
     # Add payment cleanup task
-    from .payment_tasks import cleanup_expired_payments
+    from .payment_tasks import PaymentTasks
+    payment_tasks = PaymentTasks()
+    
     scheduler.add_task(
-        name="payment_cleanup",
-        func=cleanup_expired_payments,
+        name="payment_cleanup", 
+        func=payment_tasks.process_expired_orders,
         interval=timedelta(minutes=15)
     )
     
