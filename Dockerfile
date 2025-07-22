@@ -30,8 +30,7 @@ COPY pyproject.toml poetry.lock ./
 
 # Install dependencies
 RUN --mount=type=cache,target=/tmp/poetry_cache \
-    poetry install --only=main --no-root && \
-    rm -rf /tmp/poetry_cache
+    poetry install --only=main --no-root
 
 # =============================================================================
 # Production stage
@@ -105,9 +104,8 @@ CMD ["bot"]
 FROM builder AS development
 
 # Install development dependencies
-RUN --mount=type=cache,target=$POETRY_CACHE_DIR \
-    poetry install && \
-    rm -rf $POETRY_CACHE_DIR
+RUN --mount=type=cache,target=/tmp/poetry_cache \
+    poetry install
 
 # Install additional development tools
 RUN pip install --no-cache-dir \
