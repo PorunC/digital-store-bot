@@ -47,8 +47,13 @@ class MigrationManager:
             logger.info("Migration system initialized")
             
         except Exception as e:
-            logger.error(f"Failed to initialize migration system: {e}")
-            raise
+            # Handle race condition where table might already exist
+            error_msg = str(e).lower()
+            if "already exists" in error_msg or "duplicate key" in error_msg or "unique constraint" in error_msg:
+                logger.info("Migration table already exists, continuing...")
+            else:
+                logger.error(f"Failed to initialize migration system: {e}")
+                raise
     
     async def discover_migrations(self) -> List[BaseMigration]:
         """Discover all migration files and load them."""
