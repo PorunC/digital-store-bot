@@ -12,6 +12,26 @@ from src.presentation.telegram import TelegramBot
 from src.shared.dependency_injection import container
 from src.shared.events import event_bus
 
+# Repository interfaces
+from src.domain.repositories import (
+    UserRepository,
+    ProductRepository, 
+    OrderRepository,
+    ReferralRepository,
+    InviteRepository,
+    PromocodeRepository
+)
+
+# Repository implementations
+from src.infrastructure.database.repositories import (
+    SqlAlchemyUserRepository,
+    SqlAlchemyProductRepository,
+    SqlAlchemyOrderRepository, 
+    SqlAlchemyReferralRepository,
+    SqlAlchemyInviteRepository,
+    SqlAlchemyPromocodeRepository
+)
+
 
 async def setup_logging(settings) -> None:
     """Setup application logging."""
@@ -52,7 +72,13 @@ async def setup_dependencies() -> None:
     db_manager = DatabaseManager(settings.database)
     container.register_instance(DatabaseManager, db_manager)
     
-    # TODO: Register repositories, services, etc.
+    # Register repositories
+    container.register_singleton(UserRepository, SqlAlchemyUserRepository)
+    container.register_singleton(ProductRepository, SqlAlchemyProductRepository)
+    container.register_singleton(OrderRepository, SqlAlchemyOrderRepository)
+    container.register_singleton(ReferralRepository, SqlAlchemyReferralRepository)
+    container.register_singleton(InviteRepository, SqlAlchemyInviteRepository)
+    container.register_singleton(PromocodeRepository, SqlAlchemyPromocodeRepository)
 
 
 async def main() -> None:

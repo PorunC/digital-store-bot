@@ -64,15 +64,15 @@ class TelegramBot:
         # Set webhook
         webhook_url = self.settings.external.webhook_url
         if webhook_url:
-            async with ClientSession() as session:
-                # Remove existing webhook first
-                await self.bot.delete_webhook()
-                # Set new webhook
-                await self.bot.set_webhook(
-                    url=f"{webhook_url}/webhook",
-                    secret_token=self.settings.external.webhook_secret
-                )
-                logger.info(f"Webhook set to {webhook_url}/webhook")
+            # Remove existing webhook first
+            await self.bot.delete_webhook()
+            # Set new webhook
+            await self.bot.set_webhook(
+                url=webhook_url,
+                secret_token=self.settings.external.webhook_secret,
+                drop_pending_updates=True
+            )
+            logger.info(f"Webhook set to {webhook_url}")
         
         # Create web application
         app = web.Application()
