@@ -1,0 +1,358 @@
+{
+  "metadata": {
+    "version": "2.0.0",
+    "created": "2024-01-01T00:00:00Z",
+    "description": "Digital Store Bot v2 Product Catalog",
+    "currency": "USD"
+  },
+  "categories": [
+    {
+      "id": "software",
+      "name": "Software Licenses",
+      "description": "Premium software licenses and development tools",
+      "emoji": "💻",
+      "sort_order": 1,
+      "is_active": true
+    },
+    {
+      "id": "gaming", 
+      "name": "Gaming",
+      "description": "Game keys, in-game currency, and gaming subscriptions",
+      "emoji": "🎮",
+      "sort_order": 2,
+      "is_active": true
+    },
+    {
+      "id": "subscription",
+      "name": "Premium Subscriptions",
+      "description": "Monthly and yearly premium access subscriptions",
+      "emoji": "📱",
+      "sort_order": 3,
+      "is_active": true
+    },
+    {
+      "id": "digital_goods",
+      "name": "Digital Goods",
+      "description": "E-books, templates, courses, and other digital products",
+      "emoji": "📚",
+      "sort_order": 4,
+      "is_active": true
+    },
+    {
+      "id": "services",
+      "name": "Digital Services",
+      "description": "Custom development, consulting, and support services",
+      "emoji": "🛠️",
+      "sort_order": 5,
+      "is_active": true
+    }
+  ],
+  "products": [
+    {
+      "id": "premium_1month",
+      "name": "Premium Access - 1 Month",
+      "description": "One month of premium access with all features unlocked. Get advanced analytics, priority support, and exclusive content.",
+      "category_id": "subscription",
+      "price": 9.99,
+      "currency": "USD",
+      "duration_days": 30,
+      "is_active": true,
+      "is_featured": true,
+      "stock": 1000,
+      "delivery_type": "automatic",
+      "sort_order": 1,
+      "metadata": {
+        "features": [
+          "Unlimited access to all premium features",
+          "Priority customer support",
+          "Advanced analytics dashboard",
+          "Exclusive content and updates",
+          "No advertisements"
+        ],
+        "delivery_template": "🎉 Thank you for your purchase!\n\n✅ Your Premium Access (1 Month) is now ACTIVE!\n\n🔥 Premium Features Unlocked:\n• Unlimited access to all features\n• Priority support\n• Advanced analytics\n• Exclusive content\n\n⏰ Valid until: {expiry_date}\n\nEnjoy your premium experience! 🚀",
+        "tags": ["popular", "best-value"],
+        "discount_eligible": true,
+        "auto_delivery": true
+      }
+    },
+    {
+      "id": "premium_3months",
+      "name": "Premium Access - 3 Months",
+      "description": "Three months of premium access at a discounted rate. Perfect for regular users who want extended premium benefits.",
+      "category_id": "subscription", 
+      "price": 24.99,
+      "currency": "USD",
+      "duration_days": 90,
+      "is_active": true,
+      "is_featured": true,
+      "stock": 1000,
+      "delivery_type": "automatic",
+      "sort_order": 2,
+      "metadata": {
+        "features": [
+          "3 months of unlimited premium access",
+          "Priority customer support", 
+          "Advanced analytics dashboard",
+          "Exclusive content and updates",
+          "No advertisements",
+          "17% savings vs monthly"
+        ],
+        "delivery_template": "🎉 Thank you for your purchase!\n\n✅ Your Premium Access (3 Months) is now ACTIVE!\n\n💎 Premium Features Unlocked:\n• Unlimited access to all features\n• Priority support\n• Advanced analytics\n• Exclusive content\n• 17% savings!\n\n⏰ Valid until: {expiry_date}\n\nEnjoy your premium experience! 🚀",
+        "tags": ["best-deal", "savings"],
+        "discount_eligible": true,
+        "auto_delivery": true,
+        "savings_percent": 17
+      }
+    },
+    {
+      "id": "premium_lifetime",
+      "name": "Premium Access - Lifetime",
+      "description": "One-time payment for lifetime premium access. Never pay again and enjoy all premium features forever!",
+      "category_id": "subscription",
+      "price": 99.99,
+      "currency": "USD", 
+      "duration_days": 36500,
+      "is_active": true,
+      "is_featured": true,
+      "stock": 500,
+      "delivery_type": "automatic",
+      "sort_order": 3,
+      "metadata": {
+        "features": [
+          "Lifetime premium access",
+          "All current and future premium features",
+          "Priority customer support",
+          "Advanced analytics dashboard", 
+          "Exclusive lifetime member benefits",
+          "No recurring payments"
+        ],
+        "delivery_template": "🎉 CONGRATULATIONS!\n\n🏆 Your LIFETIME Premium Access is now ACTIVE!\n\n♾️ Lifetime Benefits:\n• Unlimited access to ALL features\n• All future updates included\n• VIP priority support\n• Lifetime member exclusive content\n• Never pay again!\n\n✨ Welcome to the VIP club! ✨",
+        "tags": ["lifetime", "vip", "exclusive"],
+        "discount_eligible": false,
+        "auto_delivery": true,
+        "is_lifetime": true
+      }
+    },
+    {
+      "id": "software_license_pro",
+      "name": "ProDev Suite License",
+      "description": "Professional development suite with advanced coding tools, debuggers, and productivity extensions.",
+      "category_id": "software",
+      "price": 49.99,
+      "currency": "USD",
+      "duration_days": 365,
+      "is_active": true,
+      "is_featured": false,
+      "stock": 100,
+      "delivery_type": "manual",
+      "sort_order": 10,
+      "metadata": {
+        "features": [
+          "Advanced code editor with AI assistance",
+          "Integrated debugging tools",
+          "Version control integration",
+          "Code analysis and optimization",
+          "Team collaboration features",
+          "1 year of updates included"
+        ],
+        "delivery_template": "🔑 Your ProDev Suite License Key:\n\n**License Key:** {license_key}\n\n📥 Download Link: {download_url}\n\n📖 Installation Guide:\n1. Download the software from the link above\n2. Run the installer\n3. Enter your license key when prompted\n4. Enjoy your professional development tools!\n\n🆘 Need help? Contact our support team.",
+        "tags": ["professional", "development"],
+        "requires_manual_delivery": true,
+        "license_type": "single_user"
+      }
+    },
+    {
+      "id": "game_credits_1000",
+      "name": "Game Credits - 1000 Credits",
+      "description": "1000 premium game credits for in-game purchases, upgrades, and exclusive content.",
+      "category_id": "gaming",
+      "price": 14.99,
+      "currency": "USD", 
+      "is_active": true,
+      "is_featured": false,
+      "stock": 10000,
+      "delivery_type": "automatic",
+      "sort_order": 20,
+      "metadata": {
+        "features": [
+          "1000 premium game credits",
+          "Instant delivery to your game account",
+          "No expiration date",
+          "Compatible with all game modes",
+          "Bonus 100 credits for first-time buyers"
+        ],
+        "delivery_template": "🎮 Game Credits Delivered!\n\n💰 Credits Added: 1000 + 100 BONUS\n🎯 Total Credits: 1100\n\n📱 Credits have been added to your game account.\n\n🎁 Bonus: First-time buyer bonus applied!\n\nHappy gaming! 🚀",
+        "tags": ["gaming", "credits", "bonus"],
+        "auto_delivery": true,
+        "bonus_credits": 100
+      }
+    },
+    {
+      "id": "ebook_business_growth",
+      "name": "Business Growth Masterclass E-book",
+      "description": "Comprehensive guide to scaling your business with proven strategies from industry experts. 200+ pages of actionable insights.",
+      "category_id": "digital_goods",
+      "price": 19.99,
+      "currency": "USD",
+      "is_active": true,
+      "is_featured": false,
+      "stock": 999999,
+      "delivery_type": "automatic",
+      "sort_order": 30,
+      "metadata": {
+        "features": [
+          "200+ pages of business growth strategies",
+          "Case studies from successful entrepreneurs", 
+          "Actionable templates and worksheets",
+          "Bonus: Video interview with industry expert",
+          "Instant PDF download",
+          "Lifetime access"
+        ],
+        "delivery_template": "📚 Your E-book is ready!\n\n📖 **Business Growth Masterclass**\n\n📥 Download your e-book:\n{download_url}\n\n🎁 **BONUS INCLUDED:**\n• Video interview with expert\n• Business templates pack\n• Growth tracking worksheets\n\n💾 Save the link - lifetime access guaranteed!\n\nStart your growth journey today! 📈",
+        "tags": ["education", "business", "ebook"],
+        "file_format": "PDF",
+        "page_count": 200,
+        "includes_bonus": true
+      }
+    },
+    {
+      "id": "consultation_1hour",
+      "name": "1-Hour Expert Consultation",
+      "description": "One-on-one consultation with our industry experts. Get personalized advice for your specific needs and challenges.",
+      "category_id": "services",
+      "price": 79.99,
+      "currency": "USD",
+      "is_active": true,
+      "is_featured": false,
+      "stock": 50,
+      "delivery_type": "manual",
+      "sort_order": 40,
+      "metadata": {
+        "features": [
+          "1-hour one-on-one consultation",
+          "Video call or phone consultation",
+          "Personalized advice and recommendations",
+          "Follow-up summary report",
+          "Flexible scheduling within 7 days",
+          "Expert in your specific industry"
+        ],
+        "delivery_template": "📞 Your Expert Consultation is Booked!\n\n🎯 **Consultation Details:**\n• Duration: 1 hour\n• Format: Video call or phone\n• Scheduling: Within 7 days\n\n📅 **Next Steps:**\n1. Our team will contact you within 24 hours\n2. Schedule your preferred time slot\n3. Receive consultation details\n\n📋 You'll receive:\n• Personalized advice session\n• Summary report after call\n• Action plan recommendations\n\nLook forward to helping you succeed! 🚀",
+        "tags": ["consultation", "expert", "personalized"],
+        "requires_scheduling": true,
+        "duration_hours": 1,
+        "includes_report": true
+      }
+    },
+    {
+      "id": "website_template_premium",
+      "name": "Premium Website Template Pack",
+      "description": "Professional website templates collection with 10+ responsive designs. Perfect for businesses, portfolios, and e-commerce.",
+      "category_id": "digital_goods",
+      "price": 34.99,
+      "currency": "USD",
+      "is_active": true,
+      "is_featured": true,
+      "stock": 999999,
+      "delivery_type": "automatic",
+      "sort_order": 31,
+      "metadata": {
+        "features": [
+          "10+ professional website templates",
+          "Fully responsive designs",
+          "HTML, CSS, and JavaScript included",
+          "Easy customization guide",
+          "Commercial use license",
+          "Free updates for 1 year"
+        ],
+        "delivery_template": "🌐 Your Website Templates are Ready!\n\n📦 **Premium Template Pack Includes:**\n• 10+ professional templates\n• Full source code (HTML/CSS/JS)\n• Customization guide\n• Commercial license\n\n📥 Download your templates:\n{download_url}\n\n🎨 **Template Categories:**\n• Business & Corporate\n• Portfolio & Creative\n• E-commerce & Shops\n• Landing Pages\n\n🔄 Free updates for 1 year included!\n\nBuild amazing websites! 🚀",
+        "tags": ["templates", "website", "responsive"],
+        "template_count": 10,
+        "commercial_license": true,
+        "update_period_months": 12
+      }
+    },
+    {
+      "id": "trial_extension_7days",
+      "name": "Trial Extension - 7 Days",
+      "description": "Extend your free trial by 7 additional days. Perfect for users who need more time to explore premium features.",
+      "category_id": "subscription",
+      "price": 0.00,
+      "currency": "USD",
+      "duration_days": 7,
+      "is_active": true,
+      "is_featured": false,
+      "stock": 1000,
+      "delivery_type": "automatic",
+      "sort_order": 100,
+      "metadata": {
+        "features": [
+          "7 additional days of premium access",
+          "All premium features unlocked",
+          "No payment required",
+          "Limited to one per user",
+          "Perfect for trial users"
+        ],
+        "delivery_template": "🎁 Trial Extended Successfully!\n\n⏰ **Additional Time Added:** 7 Days\n✅ **Premium Features:** Unlocked\n🆓 **Cost:** FREE\n\n📅 **New Trial End Date:** {expiry_date}\n\n🌟 **What You Get:**\n• All premium features\n• Extended evaluation time\n• Full access to content\n\nMake the most of your extended trial! 🚀",
+        "tags": ["trial", "free", "extension"],
+        "is_trial_extension": true,
+        "max_per_user": 1,
+        "requires_trial_user": true
+      }
+    }
+  ],
+  "promocodes": [
+    {
+      "code": "WELCOME2024",
+      "type": "discount",
+      "value": 20,
+      "value_type": "percentage",
+      "description": "20% off for new users",
+      "max_uses": 1000,
+      "used_count": 0,
+      "valid_from": "2024-01-01T00:00:00Z",
+      "valid_until": "2024-12-31T23:59:59Z",
+      "applicable_products": ["premium_1month", "premium_3months"],
+      "min_order_amount": 5.00,
+      "is_active": true
+    },
+    {
+      "code": "LIFETIME50",
+      "type": "discount", 
+      "value": 50.00,
+      "value_type": "fixed",
+      "description": "$50 off lifetime subscription",
+      "max_uses": 100,
+      "used_count": 0,
+      "valid_from": "2024-01-01T00:00:00Z",
+      "valid_until": "2024-06-30T23:59:59Z",
+      "applicable_products": ["premium_lifetime"],
+      "min_order_amount": 50.00,
+      "is_active": true
+    },
+    {
+      "code": "FREETRIAL",
+      "type": "trial_extension",
+      "value": 7,
+      "value_type": "days",
+      "description": "7 days free trial extension",
+      "max_uses": 5000,
+      "used_count": 0,
+      "valid_from": "2024-01-01T00:00:00Z", 
+      "valid_until": "2024-12-31T23:59:59Z",
+      "applicable_products": ["trial_extension_7days"],
+      "is_active": true
+    }
+  ],
+  "settings": {
+    "currency_symbol": "$",
+    "default_language": "en",
+    "trial_duration_days": 3,
+    "referral_enabled": true,
+    "referral_commission_l1": 0.10,
+    "referral_commission_l2": 0.05,
+    "auto_delivery_enabled": true,
+    "manual_delivery_notification": true,
+    "stock_alerts_enabled": true,
+    "low_stock_threshold": 10
+  }
+}

@@ -1,0 +1,18 @@
+# This directory will contain:
+# - Application logs
+# - Error logs
+# - Access logs
+# - Audit logs
+
+# Example structure:
+# logs/
+# ├── bot.log               # Main bot application logs
+# ├── admin.log             # Admin panel logs
+# ├── scheduler.log         # Background task scheduler logs
+# ├── payment.log           # Payment processing logs
+# ├── error.log             # Error and exception logs
+# ├── access.log            # HTTP access logs
+# ├── audit.log             # Security and audit logs
+# └── archived/             # Archived log files
+#     ├── bot_20240101.log.gz
+#     └── admin_20240101.log.gz

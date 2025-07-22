@@ -1,0 +1,15 @@
+# This directory will contain:
+# - Database files (SQLite for development)
+# - Product catalog (products.json)
+# - User data backups
+# - Application state files
+
+# Example structure:
+# data/
+# ├── products.json          # Product catalog
+# ├── database.db           # SQLite database (development)
+# ├── backups/              # Database backups
+# │   ├── db_20240101.sql.gz
+# │   └── products_20240101.json
+# └── uploads/              # User-uploaded files
+#     └── profile_images/
