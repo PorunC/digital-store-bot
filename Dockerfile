@@ -58,18 +58,18 @@ WORKDIR /app
 
 # Copy application code
 COPY --chown=botuser:botuser src/ src/
-COPY --chown=botuser:botuser alembic.ini .
-COPY --chown=botuser:botuser alembic/ alembic/
-COPY --chown=botuser:botuser pyproject.toml poetry.lock ./
+COPY --chown=botuser:botuser config/ config/
+COPY --chown=botuser:botuser data/ data/
+COPY --chown=botuser:botuser pyproject.toml pytest.ini ./
+COPY --chown=botuser:botuser .env.example ./
 
 # Create necessary directories with proper permissions
 RUN mkdir -p /app/data /app/logs /app/static /app/templates /app/locales && \
     chown -R botuser:botuser /app && \
     chmod -R 755 /app/data /app/logs
 
-# Copy and compile translations
+# Copy locales directory (Fluent format - no compilation needed)
 COPY --chown=botuser:botuser locales/ locales/
-RUN find locales -name "*.po" -exec msgfmt {} -o {}.mo \; 2>/dev/null || true
 
 # Copy scripts
 COPY --chown=botuser:botuser scripts/ scripts/
@@ -132,4 +132,4 @@ RUN groupadd -r devuser && \
 USER devuser
 
 # Development command with auto-reload
-CMD ["python", "-m", "src.main", "--dev", "--reload"]
+CMD ["python", "-m", "src.main"]

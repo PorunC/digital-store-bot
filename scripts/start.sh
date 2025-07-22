@@ -84,24 +84,16 @@ wait_for_redis() {
     exit 1
 }
 
-# Compile translations
-compile_translations() {
-    log_info "Compiling translations..."
+# Check translations (Fluent format - no compilation needed)
+check_translations() {
+    log_info "Checking translations..."
     
     if [ -d "locales" ]; then
-        find locales -name "*.po" -exec sh -c '
-            for po_file; do
-                mo_file="${po_file%.po}.mo"
-                if msgfmt "$po_file" -o "$mo_file" 2>/dev/null; then
-                    echo "Compiled: $po_file -> $mo_file"
-                else
-                    echo "Failed to compile: $po_file"
-                fi
-            done
-        ' sh {} +
-        log_success "Translation compilation completed"
+        # Count .ftl files
+        ftl_count=$(find locales -name "*.ftl" | wc -l)
+        log_success "Found $ftl_count Fluent translation files"
     else
-        log_warning "No locales directory found, skipping translation compilation"
+        log_warning "No locales directory found"
     fi
 }
 
@@ -109,45 +101,34 @@ compile_translations() {
 run_migrations() {
     log_info "Running database migrations..."
     
-    if [ -f "alembic.ini" ]; then
-        # Check if database is accessible
+    # Check if we have migration scripts
+    if [ -d "src/infrastructure/database/migrations" ]; then
+        log_info "Running custom database migrations..."
         python -c "
 import asyncio
-import sys
-from sqlalchemy.ext.asyncio import create_async_engine
-from sqlalchemy import text
+from src.infrastructure.database.migrations.migration_manager import MigrationManager
 
-async def check_db():
+async def run_migrations():
     try:
-        engine = create_async_engine('$DATABASE_URL')
-        async with engine.begin() as conn:
-            await conn.execute(text('SELECT 1'))
-        await engine.dispose()
-        print('Database connection successful')
+        manager = MigrationManager()
+        await manager.run_migrations()
+        print('Database migrations completed successfully')
         return True
     except Exception as e:
-        print(f'Database connection failed: {e}')
+        print(f'Database migrations failed: {e}')
         return False
 
-if not asyncio.run(check_db()):
-    sys.exit(1)
+if not asyncio.run(run_migrations()):
+    exit(1)
 "
-        
         if [ $? -eq 0 ]; then
-            # Run migrations
-            python -m alembic upgrade head
-            if [ $? -eq 0 ]; then
-                log_success "Database migrations completed successfully"
-            else
-                log_error "Database migrations failed"
-                exit 1
-            fi
+            log_success "Database migrations completed successfully"
         else
-            log_error "Database connection check failed"
+            log_error "Database migrations failed"
             exit 1
         fi
     else
-        log_warning "No alembic.ini found, skipping migrations"
+        log_warning "No migration scripts found, skipping migrations"
     fi
 }
 
@@ -273,8 +254,8 @@ main() {
         wait_for_database
     fi
     
-    # Compile translations
-    compile_translations
+    # Check translations
+    check_translations
     
     # Run database migrations
     run_migrations
