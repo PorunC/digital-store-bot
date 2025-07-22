@@ -315,6 +315,12 @@ async def main() -> None:
     from src.domain.repositories.base import UnitOfWork
     container.register_factory(UnitOfWork, create_unit_of_work)
     
+    # Register payment gateway factory without bot (for background tasks)
+    from src.infrastructure.external.payment_gateways.factory import PaymentGatewayFactory
+    def create_payment_gateway_factory() -> PaymentGatewayFactory:
+        return PaymentGatewayFactory(settings, bot=None)
+    container.register_factory(PaymentGatewayFactory, create_payment_gateway_factory)
+    
     # Register application services
     from src.application.services import (
         OrderApplicationService,

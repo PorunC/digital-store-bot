@@ -1,7 +1,7 @@
 """Dependency injection container implementation."""
 
 import inspect
-from typing import Any, Callable, Dict, Type, TypeVar, get_type_hints
+from typing import Any, Callable, Dict, Type, TypeVar, Union, get_type_hints
 
 from .protocols import Injectable
 
@@ -71,6 +71,18 @@ class Container:
             if not inspect.isclass(service):
                 return service
 
+        # Check if it's an Optional type
+        if hasattr(interface, '__origin__') and interface.__origin__ is Union:
+            args = interface.__args__
+            if len(args) == 2 and type(None) in args:
+                # This is Optional[SomeType] - try to resolve the non-None type
+                non_none_type = args[0] if args[1] is type(None) else args[1]
+                try:
+                    return self.resolve(non_none_type)
+                except DependencyNotFound:
+                    # If we can't resolve the non-None type, return None for Optional
+                    return None
+        
         # Try to resolve the class
         implementation = self._services.get(interface) or self._singletons.get(interface)
         if implementation is None:
