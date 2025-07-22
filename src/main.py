@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import logging.handlers
 import sys
 from pathlib import Path
 
@@ -51,6 +52,7 @@ async def setup_dependencies() -> None:
 
 async def main() -> None:
     """Main application entry point."""
+    logger = None
     try:
         # Load settings
         settings = get_settings()
@@ -75,14 +77,23 @@ async def main() -> None:
         await bot.start()
         
     except KeyboardInterrupt:
-        logger.info("Received interrupt signal")
+        if logger:
+            logger.info("Received interrupt signal")
+        else:
+            print("Received interrupt signal")
     except Exception as e:
-        logger.error(f"Application failed to start: {e}", exc_info=True)
+        if logger:
+            logger.error(f"Application failed to start: {e}", exc_info=True)
+        else:
+            print(f"Application failed to start: {e}")
         sys.exit(1)
     finally:
         # Cleanup
         await event_bus.stop_processing()
-        logger.info("Application stopped")
+        if logger:
+            logger.info("Application stopped")
+        else:
+            print("Application stopped")
 
 
 if __name__ == "__main__":
