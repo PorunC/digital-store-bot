@@ -218,7 +218,7 @@ start_service() {
             ;;
         "admin")
             log_info "Starting Admin Panel..."
-            exec python -m src.presentation.web.admin_panel
+            exec python src/presentation/web/admin_main.py
             ;;
         "scheduler")
             log_info "Starting Task Scheduler..."

@@ -1,11 +1,8 @@
 #!/usr/bin/env python3
-"""Task scheduler main entry point."""
+"""Admin panel main entry point."""
 
 import asyncio
-import logging
-import signal
 import sys
-from datetime import timedelta
 from pathlib import Path
 
 # Add the src directory to Python path
@@ -13,22 +10,14 @@ src_path = Path(__file__).parent.parent.parent
 if str(src_path) not in sys.path:
     sys.path.insert(0, str(src_path))
 
-from src.infrastructure.background_tasks.task_scheduler import TaskScheduler
+import uvicorn
+from src.presentation.web.admin_panel import create_admin_app
 
 
-async def main() -> None:
-    """Main entry point for task scheduler."""
-    import sys
+async def setup_dependencies() -> None:
+    """Setup dependency injection container for admin panel."""
     from src.infrastructure.configuration import get_settings
     from src.shared.dependency_injection import container
-    
-    # Setup logging
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s | %(name)s | %(levelname)s | %(message)s"
-    )
-    logger = logging.getLogger(__name__)
-    logger.info("Starting Task Scheduler Service")
     
     # Load configuration
     settings = get_settings()
@@ -86,68 +75,46 @@ async def main() -> None:
     from src.domain.repositories.base import UnitOfWork
     container.register_factory(UnitOfWork, create_unit_of_work)
     
-    # Register payment gateway factory without bot (for background tasks)
-    from src.infrastructure.external.payment_gateways.factory import PaymentGatewayFactory
-    def create_payment_gateway_factory() -> PaymentGatewayFactory:
-        return PaymentGatewayFactory(settings, bot=None)
-    container.register_factory(PaymentGatewayFactory, create_payment_gateway_factory)
-    
     # Register application services
     from src.application.services import (
+        UserApplicationService,
+        ProductApplicationService,
         OrderApplicationService,
-        PaymentApplicationService, 
-        UserApplicationService
+        PaymentApplicationService,
+        ReferralApplicationService,
+        PromocodeApplicationService,
+        TrialApplicationService
     )
     
+    container.register_singleton(UserApplicationService, UserApplicationService)
+    container.register_singleton(ProductApplicationService, ProductApplicationService)
     container.register_singleton(OrderApplicationService, OrderApplicationService)
     container.register_singleton(PaymentApplicationService, PaymentApplicationService)
-    container.register_singleton(UserApplicationService, UserApplicationService)
-    
-    # Register notification service
-    from src.infrastructure.notifications.notification_service import NotificationService
-    container.register_singleton(NotificationService, NotificationService)
+    container.register_singleton(ReferralApplicationService, ReferralApplicationService)
+    container.register_singleton(PromocodeApplicationService, PromocodeApplicationService)
+    container.register_singleton(TrialApplicationService, TrialApplicationService)
     
     # Initialize database
     await db_manager.initialize()
+
+
+def main() -> None:
+    """Main entry point for admin panel."""
+    # Setup dependencies
+    asyncio.run(setup_dependencies())
     
-    # Create and configure scheduler
-    scheduler = TaskScheduler()
+    # Create app
+    app = create_admin_app()
     
-    # Add payment cleanup task
-    from src.infrastructure.background_tasks.payment_tasks import PaymentTasks
-    payment_tasks = PaymentTasks()
-    
-    scheduler.add_task(
-        name="payment_cleanup", 
-        func=payment_tasks.process_expired_orders,
-        interval=timedelta(minutes=15)
+    # Run with uvicorn
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=8080,
+        access_log=True,
+        log_level="info"
     )
-    
-    # Graceful shutdown handler
-    def signal_handler(signum, frame):
-        logger.info("Received shutdown signal, stopping scheduler...")
-        asyncio.create_task(scheduler.stop())
-    
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
-    
-    try:
-        # Start scheduler
-        await scheduler.start()
-        logger.info("Task scheduler started successfully")
-        
-        # Keep running
-        while scheduler.running:
-            await asyncio.sleep(1)
-            
-    except KeyboardInterrupt:
-        logger.info("Received keyboard interrupt")
-    except Exception as e:
-        logger.error(f"Scheduler error: {e}", exc_info=True)
-    finally:
-        await scheduler.stop()
-        logger.info("Task scheduler stopped")
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
