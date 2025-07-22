@@ -131,7 +131,7 @@ class I18nConfig(BaseModel):
     """Internationalization configuration."""
     
     default_locale: str = "en"
-    locales_dir: str = "src/presentation/telegram/locales"
+    locales_dir: str = "locales"
     supported_locales: List[str] = Field(default_factory=lambda: ["en", "ru", "zh"])
 
 

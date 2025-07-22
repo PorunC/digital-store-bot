@@ -78,7 +78,7 @@ logging:
 # Internationalization
 i18n:
   default_locale: "en"
-  locales_dir: "src/presentation/telegram/locales"
+  locales_dir: "locales"
   supported_locales:
     - en
     - ru
