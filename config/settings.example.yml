@@ -24,7 +24,7 @@ database:
 
 # Redis Configuration
 redis:
-  host: "localhost"
+  host: "digitalstore-redis"        # Updated for Docker deployment
   port: 6379
   db: 0
   username: null
@@ -44,10 +44,13 @@ shop:
     enabled: true
     level_one_reward_days: 10
     level_two_reward_days: 3
+    level_one_reward_rate: 50       # Percentage reward for level 1 referrals
+    level_two_reward_rate: 5        # Percentage reward for level 2 referrals  
+    bonus_devices_count: 1          # Number of bonus devices for referrals
 
 # Product Configuration
 products:
-  catalog_file: "config/products.yml"
+  catalog_file: "data/products.json"  # Updated to match 3xui-shop path and format
   default_category: "digital"
   delivery_timeout_seconds: 3600
   categories:
@@ -62,18 +65,19 @@ payments:
   telegram_stars:
     enabled: true
   cryptomus:
-    enabled: false
+    enabled: true                   # Updated to match 3xui-shop default (enabled)
     api_key: "YOUR_CRYPTOMUS_API_KEY"
     merchant_id: "YOUR_CRYPTOMUS_MERCHANT_ID"
 
 # Logging Configuration
 logging:
-  level: "INFO"
+  level: "DEBUG"                    # Updated to match 3xui-shop default (better for development)
   format: "%(asctime)s | %(name)s | %(levelname)s | %(message)s"
   file_enabled: true
   file_path: "logs/app.log"
   file_max_bytes: 10485760  # 10MB
   file_backup_count: 5
+  archive_format: "zip"             # Log archive format (zip/gz)
 
 # Internationalization
 i18n:
@@ -86,11 +90,12 @@ i18n:
 
 # Security
 security:
-  secret_key: "YOUR_SECRET_KEY"
+  secret_key: "your-super-secret-key-change-this-in-production"  # 🔴 MUST CHANGE: Generate random 32+ char string
   token_expire_hours: 24
   max_requests_per_minute: 60
 
 # External Services
 external:
-  webhook_url: null  # Set for webhook mode
-  webhook_secret: null
+  webhook_url: null                    # Auto-generated: https://misaka.guru/webhook/bot7511294016
+  webhook_secret: "your-webhook-secret-key"  # 🔴 CHANGE: Random string for webhook validation
+  letsencrypt_email: "example@email.com"     # From 3xui-shop .env

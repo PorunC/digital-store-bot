@@ -44,7 +44,7 @@ class DatabaseConfig(BaseModel):
 class RedisConfig(BaseModel):
     """Redis configuration."""
     
-    host: str = "localhost"
+    host: str = "digitalstore-redis"    # Updated from 3xui-shop default
     port: int = 6379
     db: int = 0
     username: Optional[str] = None
@@ -72,14 +72,17 @@ class ReferralConfig(BaseModel):
     enabled: bool = True
     level_one_reward_days: int = 10
     level_two_reward_days: int = 3
+    level_one_reward_rate: int = 50      # From SHOP_REFERRER_LEVEL_ONE_RATE
+    level_two_reward_rate: int = 5       # From SHOP_REFERRER_LEVEL_TWO_RATE
+    bonus_devices_count: int = 1         # From SHOP_BONUS_DEVICES_COUNT
 
 
 class ShopConfig(BaseModel):
     """Shop configuration."""
     
     name: str = "Digital Store"
-    email: str = "support@digitalstore.com"
-    currency: str = "USD"
+    email: str = "support@digitalstore.com"    # Updated from 3xui-shop default
+    currency: str = "USD"                    # Updated from 3xui-shop default (RUB)
     trial: TrialConfig = Field(default_factory=TrialConfig)
     referral: ReferralConfig = Field(default_factory=ReferralConfig)
 
@@ -87,7 +90,7 @@ class ShopConfig(BaseModel):
 class ProductConfig(BaseModel):
     """Product configuration."""
     
-    catalog_file: str = "config/products.yml"
+    catalog_file: str = "data/products.json"    # Updated from 3xui-shop path
     default_category: str = "digital"
     delivery_timeout_seconds: int = 3600
     categories: List[str] = Field(default_factory=lambda: [
@@ -104,9 +107,9 @@ class TelegramStarsConfig(BaseModel):
 class CryptomusConfig(BaseModel):
     """Cryptomus payment configuration."""
     
-    enabled: bool = False
-    api_key: Optional[str] = None
-    merchant_id: Optional[str] = None
+    enabled: bool = True                                      # Updated from 3xui-shop (enabled by default)
+    api_key: Optional[str] = "your_cryptomus_api_key_here"   # From CRYPTOMUS_API_KEY
+    merchant_id: Optional[str] = "your_cryptomus_merchant_id_here"  # From CRYPTOMUS_MERCHANT_ID
 
 
 class PaymentConfig(BaseModel):
@@ -119,12 +122,13 @@ class PaymentConfig(BaseModel):
 class LoggingConfig(BaseModel):
     """Logging configuration."""
     
-    level: str = "INFO"
-    format: str = "%(asctime)s | %(name)s | %(levelname)s | %(message)s"
+    level: str = "DEBUG"                                      # Updated from 3xui-shop default
+    format: str = "%(asctime)s | %(name)s | %(levelname)s | %(message)s"  # From LOG_FORMAT
     file_enabled: bool = True
     file_path: str = "logs/app.log"
     file_max_bytes: int = 10485760  # 10MB
     file_backup_count: int = 5
+    archive_format: str = "zip"                               # From LOG_ARCHIVE_FORMAT
 
 
 class I18nConfig(BaseModel):
@@ -148,6 +152,7 @@ class ExternalConfig(BaseModel):
     
     webhook_url: Optional[str] = None
     webhook_secret: Optional[str] = None
+    letsencrypt_email: str = "example@email.com"    # From LETSENCRYPT_EMAIL
 
 
 class Settings(BaseSettings):

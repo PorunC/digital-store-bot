@@ -161,3 +161,7 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+
+.env
+settings.yml
