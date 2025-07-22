@@ -218,10 +218,12 @@ start_service() {
             ;;
         "admin")
             log_info "Starting Admin Panel..."
+            export PYTHONPATH="/app:${PYTHONPATH}"
             exec python src/presentation/web/admin_main.py
             ;;
         "scheduler")
             log_info "Starting Task Scheduler..."
+            export PYTHONPATH="/app:${PYTHONPATH}"
             exec python src/infrastructure/background_tasks/scheduler_main.py
             ;;
         "worker")

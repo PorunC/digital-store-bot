@@ -8,10 +8,10 @@ import sys
 from datetime import timedelta
 from pathlib import Path
 
-# Add the src directory to Python path
-src_path = Path(__file__).parent.parent.parent
-if str(src_path) not in sys.path:
-    sys.path.insert(0, str(src_path))
+# Add the current working directory to Python path for module imports
+import os
+if os.getcwd() not in sys.path:
+    sys.path.insert(0, os.getcwd())
 
 from src.infrastructure.background_tasks.task_scheduler import TaskScheduler
 
