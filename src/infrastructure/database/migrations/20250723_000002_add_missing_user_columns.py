@@ -91,11 +91,22 @@ class AddMissingUserColumnsMigration(BaseMigration):
             ALTER COLUMN status TYPE VARCHAR(20)
         """))
         
-        # Rename and adjust referrer_id column to match model (should be string, not UUID)
+        # Fix referrer_id column type - need to drop foreign key first, then change type
+        # Step 1: Drop the existing foreign key constraint
+        await session.execute(text("""
+            ALTER TABLE users 
+            DROP CONSTRAINT IF EXISTS users_referrer_id_fkey
+        """))
+        
+        # Step 2: Change column type from UUID to VARCHAR
         await session.execute(text("""
             ALTER TABLE users 
             ALTER COLUMN referrer_id TYPE VARCHAR(255) USING referrer_id::VARCHAR(255)
         """))
+        
+        # Note: We don't recreate the foreign key constraint because referrer_id 
+        # in the UserModel is now a string (user identifier) not a UUID reference to users.id
+        # This allows for more flexible referral systems including external referrers
     
     async def down(self, session: AsyncSession) -> None:
         """Remove the added columns."""
@@ -116,8 +127,24 @@ class AddMissingUserColumnsMigration(BaseMigration):
         await session.execute(text("ALTER TABLE users ALTER COLUMN language_code TYPE VARCHAR(10)"))
         await session.execute(text("ALTER TABLE users ALTER COLUMN status TYPE VARCHAR(50)"))
         
-        # Revert referrer_id back to UUID (this might fail if there are invalid UUIDs)
-        await session.execute(text("ALTER TABLE users ALTER COLUMN referrer_id TYPE UUID USING referrer_id::UUID"))
+        # Revert referrer_id back to UUID and recreate foreign key constraint
+        # This might fail if there are non-UUID values in referrer_id
+        await session.execute(text("""
+            ALTER TABLE users 
+            ALTER COLUMN referrer_id TYPE UUID USING 
+            CASE 
+                WHEN referrer_id ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' 
+                THEN referrer_id::UUID 
+                ELSE NULL 
+            END
+        """))
+        
+        # Recreate the foreign key constraint
+        await session.execute(text("""
+            ALTER TABLE users 
+            ADD CONSTRAINT users_referrer_id_fkey 
+            FOREIGN KEY (referrer_id) REFERENCES users(id)
+        """))
     
     def get_dependencies(self) -> list[str]:
         """Depends on initial schema migration."""

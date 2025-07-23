@@ -6,17 +6,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Development Setup
 ```bash
-# Install dependencies and setup project
+# Full setup (recommended for new installations)
 ./scripts/setup.sh
 
-# Install dependencies only
-poetry install
+# Manual setup
+poetry install                              # Install dependencies
+cp config/settings.example.yml config/settings.yml  # Copy config template
+poetry run pre-commit install               # Setup pre-commit hooks
 
 # Run the application
-poetry run python -m src.main
-
-# Run in development with auto-reload
-poetry run python -m src.main --dev
+poetry run python -m src.main               # Production mode
+poetry run python -m src.main --dev         # Development with auto-reload
 ```
 
 ### Testing
@@ -25,9 +25,11 @@ poetry run python -m src.main --dev
 poetry run pytest
 
 # Run specific test markers
-poetry run pytest -m unit
-poetry run pytest -m integration
-poetry run pytest -m "not slow"
+poetry run pytest -m unit                    # Unit tests only
+poetry run pytest -m integration             # Integration tests only
+poetry run pytest -m "not slow"              # Skip slow tests
+poetry run pytest -m requires_db             # Database-dependent tests
+poetry run pytest -m requires_external       # External service tests
 
 # Run tests without coverage (faster)
 poetry run pytest --no-cov
@@ -37,6 +39,10 @@ poetry run pytest tests/unit/domain/test_user.py
 
 # Run tests matching pattern
 poetry run pytest -k "test_subscription"
+
+# Run tests with different verbosity
+poetry run pytest -v                         # Verbose output
+poetry run pytest -s                         # Show print statements
 ```
 
 ### Code Quality
@@ -143,15 +149,22 @@ src/
 Configuration uses **modular YAML** with environment overrides:
 
 - **Primary config**: `config/settings.yml` (copy from `settings.example.yml`)
-- **Environment variables**: `.env` file for secrets and overrides
+- **Environment variables**: `.env` file for secrets and overrides  
 - **Docker environment**: Environment variables in `docker-compose.yml`
 
-Key sections:
-- `bot`: Telegram bot token and admin settings  
-- `database`: Connection settings (SQLite/PostgreSQL)
-- `redis`: Caching and event storage
-- `payments`: Gateway configuration (Cryptomus, Telegram Stars)
-- `shop`: Business logic (trial periods, referral rates)
+Key configuration sections:
+- `bot`: Telegram bot token and admin settings
+- `database`: Connection settings (SQLite default, PostgreSQL for production)
+- `redis`: Caching and event storage configuration
+- `payments`: Gateway settings (Cryptomus, Telegram Stars)
+- `shop`: Business logic (trial periods, referral rates, currencies)
+- `logging`: Log levels and output configuration
+
+**Setup process:**
+1. Copy `config/settings.example.yml` to `config/settings.yml`
+2. Edit required fields: `bot.token`, `bot.admin_ids`
+3. Configure payment gateways if needed
+4. Set database URL for production deployments
 
 ## 📡 Dependency Injection Usage
 
