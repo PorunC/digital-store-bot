@@ -162,7 +162,7 @@ async def refresh_profile(
     except Exception:
         pass  # Ignore if message can't be deleted
 
-    # Call the same logic as show_profile_callback
+    # Call show_profile_callback - services will be injected automatically
     await show_profile_callback(callback, user, user_service, referral_service, order_service)
 
 
@@ -221,31 +221,22 @@ async def set_language(callback: CallbackQuery):
     lang_name = language_names.get(language_code, language_code)
     await callback.answer(f"✅ Language changed to {lang_name}")
     
-    # Refresh profile - redirect to profile_refresh
-    await callback.answer()
-    
-    # Create a new callback with profile_refresh data
-    from aiogram.types import CallbackQuery as CQ
-    refresh_callback = CQ(
-        id=callback.id,
+    # Create a new callback query to trigger refresh
+    refresh_callback = CallbackQuery(
+        id=callback.id + "_refresh",  
         from_user=callback.from_user,
         message=callback.message,
         data="profile_refresh"
     )
     
-    # Call refresh_profile handler which will handle everything properly
-    try:
-        await callback.message.delete()
-    except Exception:
-        pass
-        
-    # Get services
-    user_service = container.get(UserApplicationService)
-    referral_service = container.get(ReferralApplicationService)
-    order_service = container.get(OrderApplicationService)
-    
-    # Call show_profile_callback with proper parameters
-    await show_profile_callback(callback, user, user_service, referral_service, order_service)
+    # Call refresh_profile handler directly which will handle dependency injection
+    await refresh_profile(
+        refresh_callback, 
+        user, 
+        container.get(UserApplicationService),
+        container.get(ReferralApplicationService), 
+        container.get(OrderApplicationService)
+    )
 
 
 @profile_router.callback_query(F.data == "profile_referrals")
