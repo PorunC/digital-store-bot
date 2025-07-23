@@ -40,6 +40,9 @@ async def setup_dependencies() -> None:
     db_manager = DatabaseManager(settings.database)
     container.register_instance(DatabaseManager, db_manager)
     
+    # Initialize database first
+    await db_manager.initialize()
+    
     # Register repository factories
     session_factory = db_manager.get_session_factory()
     
@@ -96,8 +99,7 @@ async def setup_dependencies() -> None:
     container.register_singleton(PromocodeApplicationService, PromocodeApplicationService)
     container.register_singleton(TrialApplicationService, TrialApplicationService)
     
-    # Initialize database
-    await db_manager.initialize()
+    # Database already initialized above
 
 
 def main() -> None:

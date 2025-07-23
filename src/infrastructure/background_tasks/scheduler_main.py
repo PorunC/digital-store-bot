@@ -51,6 +51,9 @@ async def main() -> None:
     db_manager = DatabaseManager(settings.database)
     container.register_instance(DatabaseManager, db_manager)
     
+    # Initialize database first
+    await db_manager.initialize()
+    
     # Register repository factories
     session_factory = db_manager.get_session_factory()
     
@@ -109,8 +112,7 @@ async def main() -> None:
     from src.infrastructure.notifications.notification_service import NotificationService
     container.register_singleton(NotificationService, NotificationService)
     
-    # Initialize database
-    await db_manager.initialize()
+    # Database already initialized above
     
     # Create and configure scheduler
     scheduler = TaskScheduler()
