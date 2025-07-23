@@ -72,7 +72,7 @@ async def setup_dependencies() -> None:
     db_manager = DatabaseManager(settings.database)
     container.register_instance(DatabaseManager, db_manager)
     
-    # Register repository factories
+    # Register repository factories with session from database manager
     def create_user_repository() -> UserRepository:
         return SqlAlchemyUserRepository(db_manager.get_session())
     
@@ -107,7 +107,7 @@ async def setup_dependencies() -> None:
     from src.domain.repositories.base import UnitOfWork
     container.register_factory(UnitOfWork, create_unit_of_work)
     
-    # Register application services
+    # Register application services as factories with dependencies
     from src.application.services import (
         UserApplicationService,
         ProductApplicationService,
@@ -118,13 +118,52 @@ async def setup_dependencies() -> None:
         TrialApplicationService
     )
     
-    container.register_singleton(UserApplicationService, UserApplicationService)
-    container.register_singleton(ProductApplicationService, ProductApplicationService)
-    container.register_singleton(OrderApplicationService, OrderApplicationService)
-    container.register_singleton(PaymentApplicationService, PaymentApplicationService)
-    container.register_singleton(ReferralApplicationService, ReferralApplicationService)
-    container.register_singleton(PromocodeApplicationService, PromocodeApplicationService)
-    container.register_singleton(TrialApplicationService, TrialApplicationService)
+    def create_user_service() -> UserApplicationService:
+        user_repo = container.resolve(UserRepository)
+        uow = container.resolve(UnitOfWork)
+        return UserApplicationService(user_repo, uow)
+    
+    def create_product_service() -> ProductApplicationService:
+        product_repo = container.resolve(ProductRepository)
+        uow = container.resolve(UnitOfWork)
+        return ProductApplicationService(product_repo, uow)
+    
+    def create_order_service() -> OrderApplicationService:
+        order_repo = container.resolve(OrderRepository)
+        product_repo = container.resolve(ProductRepository)
+        user_repo = container.resolve(UserRepository)
+        uow = container.resolve(UnitOfWork)
+        return OrderApplicationService(order_repo, product_repo, user_repo, uow)
+    
+    def create_payment_service() -> PaymentApplicationService:
+        order_repo = container.resolve(OrderRepository)
+        payment_gateway_factory = container.resolve(PaymentGatewayFactory)
+        uow = container.resolve(UnitOfWork)
+        return PaymentApplicationService(order_repo, payment_gateway_factory, uow)
+    
+    def create_referral_service() -> ReferralApplicationService:
+        referral_repo = container.resolve(ReferralRepository)
+        user_repo = container.resolve(UserRepository)
+        uow = container.resolve(UnitOfWork)
+        return ReferralApplicationService(referral_repo, user_repo, uow)
+    
+    def create_promocode_service() -> PromocodeApplicationService:
+        promocode_repo = container.resolve(PromocodeRepository)
+        uow = container.resolve(UnitOfWork)
+        return PromocodeApplicationService(promocode_repo, uow)
+    
+    def create_trial_service() -> TrialApplicationService:
+        user_repo = container.resolve(UserRepository)
+        uow = container.resolve(UnitOfWork)
+        return TrialApplicationService(user_repo, uow)
+    
+    container.register_factory(UserApplicationService, create_user_service)
+    container.register_factory(ProductApplicationService, create_product_service)
+    container.register_factory(OrderApplicationService, create_order_service)
+    container.register_factory(PaymentApplicationService, create_payment_service)
+    container.register_factory(ReferralApplicationService, create_referral_service)
+    container.register_factory(PromocodeApplicationService, create_promocode_service)
+    container.register_factory(TrialApplicationService, create_trial_service)
     
     # Register payment gateway factory
     from src.infrastructure.external.payment_gateways.factory import PaymentGatewayFactory
