@@ -43,7 +43,6 @@ class DatabaseConfig(BaseModel):
             
         if self.driver.startswith("sqlite"):
             # Use absolute path and ensure directory exists
-            import os
             from pathlib import Path
             
             # Get the project root directory
