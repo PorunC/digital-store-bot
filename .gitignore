@@ -166,6 +166,5 @@ Thumbs.db
 .env
 settings.yml
 poetry.lock
-error_analysis.json
-deduplicated_errors.json
-error_analysis/
+error_*.json
+*_errors.json
