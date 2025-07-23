@@ -107,6 +107,12 @@ class DatabaseManager:
         if self._session_factory is None:
             raise RuntimeError("Database not initialized")
         return self._session_factory
+    
+    def create_session(self) -> AsyncSession:
+        """Create a new database session (for backward compatibility)."""
+        if self._session_factory is None:
+            raise RuntimeError("Database not initialized")
+        return self._session_factory()
 
     async def close(self) -> None:
         """Close database connections properly."""

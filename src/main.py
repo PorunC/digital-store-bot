@@ -72,31 +72,29 @@ async def setup_dependencies() -> None:
     db_manager = DatabaseManager(settings.database)
     container.register_instance(DatabaseManager, db_manager)
     
-    # Register repository factories with session factory from database manager
-    session_factory = db_manager.get_session_factory()
-    
+    # Register repository factories with session from database manager
     def create_user_repository() -> UserRepository:
-        return SqlAlchemyUserRepository(session_factory)
+        return SqlAlchemyUserRepository(db_manager.create_session())
     
     def create_product_repository() -> ProductRepository:
-        return SqlAlchemyProductRepository(session_factory)
+        return SqlAlchemyProductRepository(db_manager.create_session())
     
     def create_order_repository() -> OrderRepository:
-        return SqlAlchemyOrderRepository(session_factory)
+        return SqlAlchemyOrderRepository(db_manager.create_session())
     
     def create_referral_repository() -> ReferralRepository:
-        return SqlAlchemyReferralRepository(session_factory)
+        return SqlAlchemyReferralRepository(db_manager.create_session())
         
     def create_invite_repository() -> InviteRepository:
-        return SqlAlchemyInviteRepository(session_factory)
+        return SqlAlchemyInviteRepository(db_manager.create_session())
         
     def create_promocode_repository() -> PromocodeRepository:
-        return SqlAlchemyPromocodeRepository(session_factory)
+        return SqlAlchemyPromocodeRepository(db_manager.create_session())
     
     def create_unit_of_work():
         from src.domain.repositories.base import UnitOfWork
         from src.infrastructure.database.unit_of_work import SqlAlchemyUnitOfWork
-        return SqlAlchemyUnitOfWork(session_factory)
+        return SqlAlchemyUnitOfWork(db_manager.get_session_factory())
     
     container.register_factory(UserRepository, create_user_repository)
     container.register_factory(ProductRepository, create_product_repository)

@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import List, Optional
 
 from sqlalchemy import func, or_, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import selectinload
 
 from src.domain.entities.user import User, UserStatus, SubscriptionType
