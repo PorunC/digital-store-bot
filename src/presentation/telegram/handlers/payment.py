@@ -1,7 +1,7 @@
 """Payment processing handlers."""
 
 import json
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from aiogram import Router, F
 from aiogram.types import (
@@ -18,21 +18,23 @@ from src.application.services import (
     PromocodeApplicationService
 )
 from src.domain.entities.order import PaymentMethod
-from src.shared.dependency_injection import container
+from src.domain.entities.user import User
+from src.shared.dependency_injection import container, inject
 
 payment_router = Router()
 
 
 @payment_router.callback_query(F.data.startswith("buy_product_"))
-async def initiate_purchase(callback: CallbackQuery):
+@inject
+async def initiate_purchase(
+    callback: CallbackQuery,
+    user: Optional[User],
+    product_service: ProductApplicationService,
+    order_service: OrderApplicationService
+):
     """Initiate product purchase."""
-    product_service: ProductApplicationService = container.get(ProductApplicationService)
-    user_service: UserApplicationService = container.get(UserApplicationService)
-    order_service: OrderApplicationService = container.get(OrderApplicationService)
-    
     product_id = callback.data.replace("buy_product_", "")
     
-    user = await user_service.get_user_by_telegram_id(callback.from_user.id)
     if not user:
         await callback.answer("❌ User not found. Please use /start first.", show_alert=True)
         return

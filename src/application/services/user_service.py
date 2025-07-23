@@ -1,13 +1,11 @@
 """User application service with complete functionality."""
 
 from typing import List, Optional
-from uuid import UUID
 
 from src.domain.entities.user import User, SubscriptionType
 from src.domain.repositories.user_repository import UserRepository
 from src.domain.repositories.base import UnitOfWork
 from src.shared.events import event_bus
-from src.shared.dependency_injection import inject
 
 
 class UserApplicationService:
@@ -31,6 +29,11 @@ class UserApplicationService:
         invite_source: Optional[str] = None,
     ) -> User:
         """Register a new user."""
+        # Sanitize input data to prevent validation errors
+        first_name = self._sanitize_name(first_name)
+        username = self._sanitize_username(username)
+        language_code = self._sanitize_language_code(language_code)
+        
         async with self.unit_of_work:
             # Check if user already exists
             existing_user = await self.user_repository.get_by_telegram_id(telegram_id)
@@ -147,6 +150,14 @@ class UserApplicationService:
         language_code: Optional[str] = None
     ) -> User:
         """Update user profile."""
+        # Sanitize input data to prevent validation errors
+        if first_name is not None:
+            first_name = self._sanitize_name(first_name)
+        if username is not None:
+            username = self._sanitize_username(username)
+        if language_code is not None:
+            language_code = self._sanitize_language_code(language_code)
+            
         async with self.unit_of_work:
             user = await self.user_repository.get_by_id(user_id)
             if not user:
@@ -227,3 +238,29 @@ class UserApplicationService:
         for event in events:
             await event_bus.publish(event)
         user.clear_domain_events()
+
+    def _sanitize_name(self, name: str) -> str:
+        """Sanitize name input to prevent validation errors."""
+        if not name:
+            return "User"
+        name = name.strip()
+        if len(name) > 64:
+            name = name[:61] + "..."
+        return name
+
+    def _sanitize_username(self, username: Optional[str]) -> Optional[str]:
+        """Sanitize username input to prevent validation errors."""
+        if not username:
+            return None
+        username = username.strip()
+        if not username:
+            return None
+        if len(username) > 32:
+            username = username[:29] + "..."
+        return username
+
+    def _sanitize_language_code(self, language_code: str) -> str:
+        """Sanitize language code input."""
+        if not language_code or len(language_code) < 2:
+            return "en"
+        return language_code[:5].lower()

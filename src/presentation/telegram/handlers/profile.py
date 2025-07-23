@@ -15,8 +15,8 @@ from src.application.services import (
     OrderApplicationService,
     TrialApplicationService
 )
-from src.domain.entities.user import SubscriptionType
-from src.shared.dependency_injection import container
+from src.domain.entities.user import User, SubscriptionType
+from src.shared.dependency_injection import container, inject
 
 profile_router = Router()
 
@@ -26,13 +26,15 @@ class ProfileStates(StatesGroup):
 
 
 @profile_router.message(Command("profile"))
-async def show_profile(message: Message):
+@inject
+async def show_profile(
+    message: Message,
+    user: Optional[User],
+    user_service: UserApplicationService,
+    referral_service: ReferralApplicationService,
+    order_service: OrderApplicationService
+):
     """Show user profile information."""
-    user_service: UserApplicationService = container.get(UserApplicationService)
-    referral_service: ReferralApplicationService = container.get(ReferralApplicationService)
-    order_service: OrderApplicationService = container.get(OrderApplicationService)
-    
-    user = await user_service.get_user_by_telegram_id(message.from_user.id)
     if not user:
         await message.answer("❌ User not found. Please use /start first.")
         return
