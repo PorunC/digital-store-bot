@@ -204,6 +204,12 @@ async def main() -> None:
         db_manager = container.resolve(DatabaseManager)
         await db_manager.initialize()
         
+        # Import all models to register them with Base.metadata
+        from src.infrastructure.database.models import (
+            UserModel, ProductModel, OrderModel, ReferralModel, 
+            PromocodeModel, InviteModel
+        )
+        
         # Create database tables if they don't exist
         await db_manager.create_tables()
         
