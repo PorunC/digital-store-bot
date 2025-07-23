@@ -35,18 +35,34 @@ class Referral(AggregateRoot):
     referrer_id: UUID
     referred_user_id: UUID
     
-    # Reward tracking for referred user
+    # Status tracking
+    status: ReferralStatus = Field(default=ReferralStatus.PENDING)
+    
+    # Reward tracking flags
+    first_level_reward_granted: bool = Field(default=False)
+    second_level_reward_granted: bool = Field(default=False)
+    
+    # Activation tracking
+    activated_at: Optional[datetime] = None
+    
+    # Purchase tracking
+    first_purchase_at: Optional[datetime] = None
+    
+    # Invite source tracking
+    invite_source: Optional[str] = None
+    
+    # Metadata for additional tracking
+    metadata: dict = Field(default_factory=dict)
+    
+    # Legacy reward tracking (kept for compatibility)
     referred_rewarded_at: Optional[datetime] = None
     referred_bonus_days: int = Field(default=0, ge=0)
     
-    # Reward tracking for referrer
+    # Referrer reward tracking
     referrer_rewarded_at: Optional[datetime] = None
     referrer_bonus_days: int = Field(default=0, ge=0)
     
     # Additional tracking
-    invite_source: Optional[str] = None
-    status: ReferralStatus = Field(default=ReferralStatus.PENDING)
-    first_purchase_at: Optional[datetime] = None
     total_referrer_rewards: int = Field(default=0, ge=0)
 
     @classmethod
@@ -80,6 +96,7 @@ class Referral(AggregateRoot):
             return
             
         self.status = ReferralStatus.ACTIVE
+        self.activated_at = datetime.now(timezone.utc)
         self.mark_updated()
         
         event = ReferralActivated.create(
@@ -169,9 +186,10 @@ class Referral(AggregateRoot):
 
     def grant_first_level_reward(self) -> None:
         """Grant first level referral reward."""
-        if self.referred_rewarded_at is not None:
+        if self.first_level_reward_granted:
             return  # Already rewarded
             
+        self.first_level_reward_granted = True
         self.referred_rewarded_at = datetime.now(timezone.utc)
         self.mark_updated()
         
@@ -185,9 +203,10 @@ class Referral(AggregateRoot):
 
     def grant_second_level_reward(self) -> None:
         """Grant second level referral reward."""
-        if self.referrer_rewarded_at is not None:
+        if self.second_level_reward_granted:
             return  # Already rewarded
             
+        self.second_level_reward_granted = True
         self.referrer_rewarded_at = datetime.now(timezone.utc)
         self.mark_updated()
         
