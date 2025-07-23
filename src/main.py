@@ -12,25 +12,7 @@ from src.presentation.telegram import TelegramBot
 from src.shared.dependency_injection import container
 from src.shared.events import event_bus
 
-# Repository interfaces
-from src.domain.repositories import (
-    UserRepository,
-    ProductRepository, 
-    OrderRepository,
-    ReferralRepository,
-    InviteRepository,
-    PromocodeRepository
-)
-
-# Repository implementations
-from src.infrastructure.database.repositories import (
-    SqlAlchemyUserRepository,
-    SqlAlchemyProductRepository,
-    SqlAlchemyOrderRepository, 
-    SqlAlchemyReferralRepository,
-    SqlAlchemyInviteRepository,
-    SqlAlchemyPromocodeRepository
-)
+# No longer need repository imports - all services use UnitOfWork pattern
 
 
 async def setup_logging(settings) -> None:
@@ -78,39 +60,11 @@ async def setup_dependencies() -> None:
     # Get session factory for UnitOfWork usage
     session_factory = db_manager.get_session_factory()
     
-    # Repository factories - TEMPORARY implementation with session management
-    # TODO: All services should be refactored to use only UnitOfWork pattern
-    def create_user_repository() -> UserRepository:
-        # Using create_session with warning - this causes connection leaks
-        # Should be replaced with UnitOfWork pattern
-        return SqlAlchemyUserRepository(db_manager.create_session())
-    
-    def create_product_repository() -> ProductRepository:
-        return SqlAlchemyProductRepository(db_manager.create_session())
-    
-    def create_order_repository() -> OrderRepository:
-        return SqlAlchemyOrderRepository(db_manager.create_session())
-    
-    def create_referral_repository() -> ReferralRepository:
-        return SqlAlchemyReferralRepository(db_manager.create_session())
-        
-    def create_invite_repository() -> InviteRepository:
-        return SqlAlchemyInviteRepository(db_manager.create_session())
-        
-    def create_promocode_repository() -> PromocodeRepository:
-        return SqlAlchemyPromocodeRepository(db_manager.create_session())
-    
+    # UnitOfWork factory - All services now use UnitOfWork pattern exclusively
     def create_unit_of_work():
         from src.domain.repositories.base import UnitOfWork
         from src.infrastructure.database.unit_of_work import SqlAlchemyUnitOfWork
         return SqlAlchemyUnitOfWork(db_manager.get_session_factory())
-    
-    container.register_factory(UserRepository, create_user_repository)
-    container.register_factory(ProductRepository, create_product_repository)
-    container.register_factory(OrderRepository, create_order_repository)
-    container.register_factory(ReferralRepository, create_referral_repository)
-    container.register_factory(InviteRepository, create_invite_repository)
-    container.register_factory(PromocodeRepository, create_promocode_repository)
     
     # Register UnitOfWork factory
     from src.domain.repositories.base import UnitOfWork
@@ -132,38 +86,29 @@ async def setup_dependencies() -> None:
         return UserApplicationService(uow)
     
     def create_product_service() -> ProductApplicationService:
-        product_repo = container.resolve(ProductRepository)
         uow = container.resolve(UnitOfWork)
-        return ProductApplicationService(product_repo, uow)
+        return ProductApplicationService(uow)
     
     def create_order_service() -> OrderApplicationService:
-        order_repo = container.resolve(OrderRepository)
-        product_repo = container.resolve(ProductRepository)
-        user_repo = container.resolve(UserRepository)
         uow = container.resolve(UnitOfWork)
-        return OrderApplicationService(order_repo, product_repo, user_repo, uow)
+        return OrderApplicationService(uow)
     
     def create_payment_service() -> PaymentApplicationService:
-        order_repo = container.resolve(OrderRepository)
         payment_gateway_factory = container.resolve(PaymentGatewayFactory)
         uow = container.resolve(UnitOfWork)
-        return PaymentApplicationService(order_repo, payment_gateway_factory, uow)
+        return PaymentApplicationService(payment_gateway_factory, uow)
     
     def create_referral_service() -> ReferralApplicationService:
-        referral_repo = container.resolve(ReferralRepository)
-        user_repo = container.resolve(UserRepository)
         uow = container.resolve(UnitOfWork)
-        return ReferralApplicationService(referral_repo, user_repo, uow)
+        return ReferralApplicationService(uow)
     
     def create_promocode_service() -> PromocodeApplicationService:
-        promocode_repo = container.resolve(PromocodeRepository)
         uow = container.resolve(UnitOfWork)
-        return PromocodeApplicationService(promocode_repo, uow)
+        return PromocodeApplicationService(uow)
     
     def create_trial_service() -> TrialApplicationService:
-        user_repo = container.resolve(UserRepository)
         uow = container.resolve(UnitOfWork)
-        return TrialApplicationService(user_repo, uow)
+        return TrialApplicationService(uow)
     
     container.register_factory(UserApplicationService, create_user_service)
     container.register_factory(ProductApplicationService, create_product_service)

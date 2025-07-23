@@ -16,13 +16,19 @@ class PaymentApplicationService:
 
     def __init__(
         self,
-        order_repository: OrderRepository,
         payment_gateway_factory: PaymentGatewayFactory,
         unit_of_work: UnitOfWork
     ):
-        self.order_repository = order_repository
         self.payment_gateway_factory = payment_gateway_factory
         self.unit_of_work = unit_of_work
+        
+    def _get_order_repository(self) -> OrderRepository:
+        """Get order repository from unit of work."""
+        from src.infrastructure.database.repositories.order_repository import SqlAlchemyOrderRepository
+        if hasattr(self.unit_of_work, 'session') and self.unit_of_work.session:
+            return SqlAlchemyOrderRepository(self.unit_of_work.session)
+        else:
+            raise RuntimeError("Unit of work session not available")
 
     async def create_payment(
         self,
@@ -33,7 +39,7 @@ class PaymentApplicationService:
     ) -> PaymentResult:
         """Create a payment for an order."""
         async with self.unit_of_work:
-            order = await self.order_repository.get_by_id(order_id)
+            order = await self._get_order_repository().get_by_id(order_id)
             if not order:
                 raise ValueError(f"Order with ID {order_id} not found")
 
@@ -69,7 +75,7 @@ class PaymentApplicationService:
                 )
                 order.payment_method = payment_method
 
-                order = await self.order_repository.update(order)
+                order = await self._get_order_repository().update(order)
                 await self._publish_events(order)
                 await self.unit_of_work.commit()
 
@@ -96,7 +102,7 @@ class PaymentApplicationService:
             if not payment_info.get("order_id"):
                 raise ValueError("Order ID not found in webhook data")
 
-            order = await self.order_repository.get_by_id(payment_info["order_id"])
+            order = await self._get_order_repository().get_by_id(payment_info["order_id"])
             if not order:
                 raise ValueError(f"Order {payment_info['order_id']} not found")
 
@@ -104,7 +110,7 @@ class PaymentApplicationService:
             if payment_info.get("status") == "paid":
                 order.mark_as_paid(payment_info.get("external_payment_id"))
                 
-                order = await self.order_repository.update(order)
+                order = await self._get_order_repository().update(order)
                 await self._publish_events(order)
                 await self.unit_of_work.commit()
                 
@@ -113,7 +119,7 @@ class PaymentApplicationService:
             elif payment_info.get("status") == "failed":
                 order.cancel(f"Payment failed: {payment_info.get('error_message', 'Unknown error')}")
                 
-                order = await self.order_repository.update(order)
+                order = await self._get_order_repository().update(order)
                 await self._publish_events(order)
                 await self.unit_of_work.commit()
                 
@@ -123,9 +129,10 @@ class PaymentApplicationService:
 
     async def check_payment_status(self, order_id: str) -> Dict:
         """Check payment status for an order."""
-        order = await self.order_repository.get_by_id(order_id)
-        if not order:
-            raise ValueError(f"Order with ID {order_id} not found")
+        async with self.unit_of_work:
+            order = await self._get_order_repository().get_by_id(order_id)
+            if not order:
+                raise ValueError(f"Order with ID {order_id} not found")
 
         if not order.payment_id or not order.payment_method:
             return {
@@ -133,24 +140,24 @@ class PaymentApplicationService:
                 "message": "No payment information found for this order"
             }
 
-        # Get appropriate payment gateway
-        gateway = self.payment_gateway_factory.get_gateway(order.payment_method)
-        
-        # Check status through gateway
-        status = await gateway.get_payment_status(order.payment_id)
-        
-        return {
-            "order_id": order_id,
-            "payment_id": order.payment_id,
-            "external_payment_id": order.external_payment_id,
-            "status": status.get("status"),
-            "amount": order.amount.amount,
-            "currency": order.amount.currency,
-            "gateway": order.payment_gateway,
-            "created_at": order.created_at.isoformat(),
-            "paid_at": order.paid_at.isoformat() if order.paid_at else None,
-            "details": status
-        }
+            # Get appropriate payment gateway
+            gateway = self.payment_gateway_factory.get_gateway(order.payment_method)
+            
+            # Check status through gateway
+            status = await gateway.get_payment_status(order.payment_id)
+            
+            return {
+                "order_id": order_id,
+                "payment_id": order.payment_id,
+                "external_payment_id": order.external_payment_id,
+                "status": status.get("status"),
+                "amount": order.amount.amount,
+                "currency": order.amount.currency,
+                "gateway": order.payment_gateway,
+                "created_at": order.created_at.isoformat(),
+                "paid_at": order.paid_at.isoformat() if order.paid_at else None,
+                "details": status
+            }
 
     async def refund_payment(
         self,
@@ -160,7 +167,7 @@ class PaymentApplicationService:
     ) -> Dict:
         """Refund a payment."""
         async with self.unit_of_work:
-            order = await self.order_repository.get_by_id(order_id)
+            order = await self._get_order_repository().get_by_id(order_id)
             if not order:
                 raise ValueError(f"Order with ID {order_id} not found")
 
@@ -185,7 +192,7 @@ class PaymentApplicationService:
                 # Update order status
                 order.cancel(f"Refunded: {reason or 'No reason provided'}")
                 
-                order = await self.order_repository.update(order)
+                order = await self._get_order_repository().update(order)
                 await self._publish_events(order)
                 await self.unit_of_work.commit()
 
@@ -212,36 +219,37 @@ class PaymentApplicationService:
 
     async def get_payment_statistics(self) -> Dict:
         """Get payment statistics."""
-        # Get overall revenue stats
-        revenue_stats = await self.order_repository.get_revenue_stats()
-        
-        # Get orders by status for payment analysis
-        order_stats = await self.order_repository.get_order_stats()
-        
-        # Calculate payment method distribution
-        all_orders = await self.order_repository.get_all()
-        payment_method_stats = {}
-        
-        for order in all_orders:
-            if order.payment_method:
-                method = order.payment_method.value
-                if method not in payment_method_stats:
-                    payment_method_stats[method] = {
-                        "count": 0,
-                        "revenue": 0.0,
-                        "currency": order.amount.currency
-                    }
-                
-                payment_method_stats[method]["count"] += 1
-                if order.status.value in ["paid", "completed"]:
-                    payment_method_stats[method]["revenue"] += order.amount.amount
+        async with self.unit_of_work:
+            # Get overall revenue stats
+            revenue_stats = await self._get_order_repository().get_revenue_stats()
+            
+            # Get orders by status for payment analysis
+            order_stats = await self._get_order_repository().get_order_stats()
+            
+            # Calculate payment method distribution
+            all_orders = await self._get_order_repository().get_all()
+            payment_method_stats = {}
+            
+            for order in all_orders:
+                if order.payment_method:
+                    method = order.payment_method.value
+                    if method not in payment_method_stats:
+                        payment_method_stats[method] = {
+                            "count": 0,
+                            "revenue": 0.0,
+                            "currency": order.amount.currency
+                        }
+                    
+                    payment_method_stats[method]["count"] += 1
+                    if order.status.value in ["paid", "completed"]:
+                        payment_method_stats[method]["revenue"] += order.amount.amount
 
-        return {
-            "revenue": revenue_stats,
-            "orders": order_stats,
-            "payment_methods": payment_method_stats,
-            "supported_methods": [method.value for method in self.get_supported_payment_methods()]
-        }
+            return {
+                "revenue": revenue_stats,
+                "orders": order_stats,
+                "payment_methods": payment_method_stats,
+                "supported_methods": [method.value for method in self.get_supported_payment_methods()]
+            }
 
     async def _publish_events(self, order: Order) -> None:
         """Publish domain events."""
