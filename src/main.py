@@ -72,8 +72,17 @@ async def setup_dependencies() -> None:
     db_manager = DatabaseManager(settings.database)
     container.register_instance(DatabaseManager, db_manager)
     
-    # Register repository factories with session from database manager
+    # Initialize database first
+    await db_manager.initialize()
+    
+    # Get session factory for UnitOfWork usage
+    session_factory = db_manager.get_session_factory()
+    
+    # Repository factories - only for backwards compatibility
+    # New services should use UnitOfWork pattern exclusively
     def create_user_repository() -> UserRepository:
+        # Temporary implementation for compatibility
+        # TODO: Remove once all services use UnitOfWork exclusively
         return SqlAlchemyUserRepository(db_manager.create_session())
     
     def create_product_repository() -> ProductRepository:
@@ -119,9 +128,8 @@ async def setup_dependencies() -> None:
     )
     
     def create_user_service() -> UserApplicationService:
-        user_repo = container.resolve(UserRepository)
         uow = container.resolve(UnitOfWork)
-        return UserApplicationService(user_repo, uow)
+        return UserApplicationService(uow)
     
     def create_product_service() -> ProductApplicationService:
         product_repo = container.resolve(ProductRepository)
