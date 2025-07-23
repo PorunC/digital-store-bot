@@ -24,6 +24,43 @@ class AddMissingUserColumnsMigration(BaseMigration):
     async def up(self, session: AsyncSession) -> None:
         """Add missing columns to users table."""
         
+        # Helper function to safely execute ALTER COLUMN operations
+        async def safe_alter_column(table: str, column: str, new_type: str, using_clause: str = None):
+            """Safely alter column type if column exists and type is different."""
+            # Check if column exists and get current type
+            result = await session.execute(text("""
+                SELECT data_type, character_maximum_length 
+                FROM information_schema.columns 
+                WHERE table_name = :table AND column_name = :column
+            """), {"table": table, "column": column})
+            
+            column_info = result.fetchone()
+            if not column_info:
+                return  # Column doesn't exist, skip
+            
+            current_type = column_info[0].upper()
+            max_length = column_info[1]
+            
+            # Check if we need to change the type
+            needs_change = False
+            if 'VARCHAR' in new_type.upper():
+                # Extract length from new_type (e.g., "VARCHAR(20)" -> 20)
+                import re
+                length_match = re.search(r'VARCHAR\((\d+)\)', new_type.upper())
+                new_length = int(length_match.group(1)) if length_match else None
+                
+                if current_type != 'CHARACTER VARYING' or (new_length and new_length != max_length):
+                    needs_change = True
+            elif current_type != new_type.upper():
+                needs_change = True
+            
+            if needs_change:
+                using_part = f" USING {using_clause}" if using_clause else ""
+                await session.execute(text(f"""
+                    ALTER TABLE {table} 
+                    ALTER COLUMN {column} TYPE {new_type}{using_part}
+                """))
+        
         # Add missing trial system columns
         await session.execute(text("""
             ALTER TABLE users 
@@ -44,12 +81,6 @@ class AddMissingUserColumnsMigration(BaseMigration):
         await session.execute(text("""
             ALTER TABLE users 
             ADD COLUMN IF NOT EXISTS total_subscription_days INTEGER DEFAULT 0 NOT NULL
-        """))
-        
-        # Update existing subscription_type column to match model constraints
-        await session.execute(text("""
-            ALTER TABLE users 
-            ALTER COLUMN subscription_type TYPE VARCHAR(20)
         """))
         
         # Add missing statistics columns
@@ -79,30 +110,29 @@ class AddMissingUserColumnsMigration(BaseMigration):
             ADD COLUMN IF NOT EXISTS notes TEXT
         """))
         
-        # Update language_code column size to match model
-        await session.execute(text("""
-            ALTER TABLE users 
-            ALTER COLUMN language_code TYPE VARCHAR(5)
+        # Update column types to match model - safe alterations
+        await safe_alter_column('users', 'subscription_type', 'VARCHAR(20)')
+        await safe_alter_column('users', 'language_code', 'VARCHAR(5)')
+        await safe_alter_column('users', 'status', 'VARCHAR(20)')
+        
+        # Fix referrer_id column - the most critical part
+        # Step 1: Check if foreign key constraint exists and drop it
+        constraint_check = await session.execute(text("""
+            SELECT constraint_name 
+            FROM information_schema.table_constraints 
+            WHERE table_name = 'users' 
+            AND constraint_type = 'FOREIGN KEY' 
+            AND constraint_name = 'users_referrer_id_fkey'
         """))
         
-        # Update status column size to match model
-        await session.execute(text("""
-            ALTER TABLE users 
-            ALTER COLUMN status TYPE VARCHAR(20)
-        """))
+        if constraint_check.fetchone():
+            await session.execute(text("""
+                ALTER TABLE users 
+                DROP CONSTRAINT users_referrer_id_fkey
+            """))
         
-        # Fix referrer_id column type - need to drop foreign key first, then change type
-        # Step 1: Drop the existing foreign key constraint
-        await session.execute(text("""
-            ALTER TABLE users 
-            DROP CONSTRAINT IF EXISTS users_referrer_id_fkey
-        """))
-        
-        # Step 2: Change column type from UUID to VARCHAR
-        await session.execute(text("""
-            ALTER TABLE users 
-            ALTER COLUMN referrer_id TYPE VARCHAR(255) USING referrer_id::VARCHAR(255)
-        """))
+        # Step 2: Change referrer_id column type from UUID to VARCHAR if needed
+        await safe_alter_column('users', 'referrer_id', 'VARCHAR(255)', 'referrer_id::VARCHAR(255)')
         
         # Note: We don't recreate the foreign key constraint because referrer_id 
         # in the UserModel is now a string (user identifier) not a UUID reference to users.id
