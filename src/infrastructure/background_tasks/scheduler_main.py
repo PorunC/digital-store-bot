@@ -33,15 +33,7 @@ async def main() -> None:
     # Load configuration
     settings = get_settings()
     
-    # Setup dependencies (same as main.py)
-    from src.domain.repositories import (
-        UserRepository, ProductRepository, OrderRepository,
-        ReferralRepository, InviteRepository, PromocodeRepository
-    )
-    from src.infrastructure.database.repositories import (
-        SqlAlchemyUserRepository, SqlAlchemyProductRepository, SqlAlchemyOrderRepository,
-        SqlAlchemyReferralRepository, SqlAlchemyInviteRepository, SqlAlchemyPromocodeRepository
-    )
+    # Setup dependencies using UnitOfWork pattern only
     from src.infrastructure.database import DatabaseManager
     
     # Register configuration
@@ -54,38 +46,11 @@ async def main() -> None:
     # Initialize database first
     await db_manager.initialize()
     
-    # Register repository factories
-    session_factory = db_manager.get_session_factory()
-    
-    def create_user_repository() -> UserRepository:
-        return SqlAlchemyUserRepository(session_factory)
-    
-    def create_product_repository() -> ProductRepository:
-        return SqlAlchemyProductRepository(session_factory)
-    
-    def create_order_repository() -> OrderRepository:
-        return SqlAlchemyOrderRepository(session_factory)
-    
-    def create_referral_repository() -> ReferralRepository:
-        return SqlAlchemyReferralRepository(session_factory)
-        
-    def create_invite_repository() -> InviteRepository:
-        return SqlAlchemyInviteRepository(session_factory)
-        
-    def create_promocode_repository() -> PromocodeRepository:
-        return SqlAlchemyPromocodeRepository(session_factory)
-    
+    # UnitOfWork factory - All services now use UnitOfWork pattern exclusively
     def create_unit_of_work():
         from src.domain.repositories.base import UnitOfWork
         from src.infrastructure.database.unit_of_work import SqlAlchemyUnitOfWork
-        return SqlAlchemyUnitOfWork(session_factory)
-    
-    container.register_factory(UserRepository, create_user_repository)
-    container.register_factory(ProductRepository, create_product_repository)
-    container.register_factory(OrderRepository, create_order_repository)
-    container.register_factory(ReferralRepository, create_referral_repository)
-    container.register_factory(InviteRepository, create_invite_repository)
-    container.register_factory(PromocodeRepository, create_promocode_repository)
+        return SqlAlchemyUnitOfWork(db_manager.get_session_factory())
     
     # Register UnitOfWork factory
     from src.domain.repositories.base import UnitOfWork
@@ -97,16 +62,29 @@ async def main() -> None:
         return PaymentGatewayFactory(settings, bot=None)
     container.register_factory(PaymentGatewayFactory, create_payment_gateway_factory)
     
-    # Register application services
+    # Register application services as factories with dependencies
     from src.application.services import (
         OrderApplicationService,
         PaymentApplicationService, 
         UserApplicationService
     )
     
-    container.register_singleton(OrderApplicationService, OrderApplicationService)
-    container.register_singleton(PaymentApplicationService, PaymentApplicationService)
-    container.register_singleton(UserApplicationService, UserApplicationService)
+    def create_user_service() -> UserApplicationService:
+        uow = container.resolve(UnitOfWork)
+        return UserApplicationService(uow)
+    
+    def create_order_service() -> OrderApplicationService:
+        uow = container.resolve(UnitOfWork)
+        return OrderApplicationService(uow)
+    
+    def create_payment_service() -> PaymentApplicationService:
+        payment_gateway_factory = container.resolve(PaymentGatewayFactory)
+        uow = container.resolve(UnitOfWork)
+        return PaymentApplicationService(payment_gateway_factory, uow)
+    
+    container.register_factory(UserApplicationService, create_user_service)
+    container.register_factory(OrderApplicationService, create_order_service)
+    container.register_factory(PaymentApplicationService, create_payment_service)
     
     # Register notification service
     from src.infrastructure.notifications.notification_service import NotificationService
