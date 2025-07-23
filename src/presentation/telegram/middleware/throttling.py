@@ -76,26 +76,36 @@ class ThrottlingMiddleware(BaseMiddleware):
     
     def _get_user_id(self, event: Update) -> int:
         """Extract user ID from update."""
-        if event.message:
+        if hasattr(event, 'message') and event.message:
             return event.message.from_user.id if event.message.from_user else None
-        elif event.callback_query:
+        elif hasattr(event, 'callback_query') and event.callback_query:
             return event.callback_query.from_user.id
-        elif event.inline_query:
+        elif hasattr(event, 'inline_query') and event.inline_query:
             return event.inline_query.from_user.id
-        elif event.chosen_inline_result:
+        elif hasattr(event, 'chosen_inline_result') and event.chosen_inline_result:
             return event.chosen_inline_result.from_user.id
+        elif isinstance(event, Message):
+            return event.from_user.id if event.from_user else None
+        elif isinstance(event, CallbackQuery):
+            return event.from_user.id
         return None
     
     def _get_rate_config(self, event: Update) -> Dict[str, float]:
         """Get rate configuration based on update type."""
-        if event.message:
+        if hasattr(event, 'message') and event.message:
             if event.message.text and event.message.text.startswith('/'):
                 return self.rate_configs["command"]
             return self.rate_configs["message"]
-        elif event.callback_query:
+        elif hasattr(event, 'callback_query') and event.callback_query:
             return self.rate_configs["callback"]
-        elif event.inline_query:
+        elif hasattr(event, 'inline_query') and event.inline_query:
             return self.rate_configs["inline_query"]
+        elif isinstance(event, Message):
+            if event.text and event.text.startswith('/'):
+                return self.rate_configs["command"]
+            return self.rate_configs["message"]
+        elif isinstance(event, CallbackQuery):
+            return self.rate_configs["callback"]
         
         return {"rate": self.default_rate, "burst": self.default_burst}
     
@@ -150,10 +160,14 @@ class ThrottlingMiddleware(BaseMiddleware):
         
         # Send throttling message
         try:
-            if event.message:
+            if hasattr(event, 'message') and event.message:
                 await event.message.answer(message)
-            elif event.callback_query:
+            elif hasattr(event, 'callback_query') and event.callback_query:
                 await event.callback_query.answer(message, show_alert=True)
+            elif isinstance(event, Message):
+                await event.answer(message)
+            elif isinstance(event, CallbackQuery):
+                await event.answer(message, show_alert=True)
         except Exception as e:
             logger.error(f"Error sending throttling message: {e}")
         
