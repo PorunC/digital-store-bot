@@ -6,6 +6,7 @@ import asyncio
 import logging
 from typing import Optional, AsyncGenerator
 from contextlib import asynccontextmanager
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.pool import NullPool
@@ -122,7 +123,6 @@ class DatabaseManager:
         
         try:
             async with self.get_session() as session:
-                from sqlalchemy import text
                 await session.execute(text("SELECT 1"))
                 return True
         except Exception as e:
