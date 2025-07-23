@@ -259,6 +259,40 @@ async def handle_trial_callback(
         await callback_query.answer("❌ Error processing request")
 
 
+@start_router.callback_query(F.data == "back_to_main")
+@inject
+async def back_to_main(
+    callback: CallbackQuery,
+    user: Optional[User],
+    settings: Settings
+) -> None:
+    """Handle back to main menu callback."""
+    try:
+        # Handle case when user context is not available
+        if user is None:
+            await callback.message.edit_text(
+                "⚠️ We're experiencing some technical issues. Please try again in a moment.",
+                reply_markup=_create_basic_keyboard()
+            )
+            await callback.answer()
+            return
+        
+        # Get welcome message and main menu keyboard
+        welcome_text = _get_welcome_message(user, settings)
+        keyboard = _create_main_menu_keyboard(user, settings)
+        
+        await callback.message.edit_text(
+            text=welcome_text,
+            reply_markup=keyboard,
+            parse_mode="HTML"
+        )
+        await callback.answer()
+        
+    except Exception as e:
+        logger.error(f"Error in back_to_main: {e}")
+        await callback.answer("❌ Error returning to main menu")
+
+
 # Helper function for localization (placeholder)
 def _(text: str) -> str:
     """Placeholder for localization."""

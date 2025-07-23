@@ -12,6 +12,54 @@ from src.shared.dependency_injection import container
 support_router = Router()
 
 
+@support_router.callback_query(F.data == "support:main")
+async def show_support_main(callback: CallbackQuery):
+    """Show main support menu via callback."""
+    help_text = (
+        f"🆘 **Help & Support**\n\n"
+        f"**Available Commands:**\n"
+        f"• /start - Start the bot\n"
+        f"• /catalog - Browse products\n"
+        f"• /profile - View your profile\n"
+        f"• /orders - View order history\n"
+        f"• /referral - Referral program\n"
+        f"• /trial - Free trial info\n"
+        f"• /help - Show this help\n"
+        f"• /support - Contact support\n\n"
+        f"**How to Use:**\n"
+        f"1️⃣ Browse products with /catalog\n"
+        f"2️⃣ Select a product to purchase\n"
+        f"3️⃣ Choose payment method\n"
+        f"4️⃣ Complete payment\n"
+        f"5️⃣ Enjoy premium access!\n\n"
+        f"**Payment Methods:**\n"
+        f"• ⭐ Telegram Stars\n"
+        f"• ₿ Cryptocurrency (BTC, ETH, USDT)\n\n"
+        f"**Referral Program:**\n"
+        f"• Share your link with friends\n"
+        f"• Earn rewards when they join\n"
+        f"• Get extra days for purchases\n\n"
+        f"**Need Help?**\n"
+        f"Use the buttons below!"
+    )
+
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="🛍️ Browse Catalog", callback_data="catalog:main"),
+            InlineKeyboardButton(text="👤 My Profile", callback_data="profile:main")
+        ],
+        [
+            InlineKeyboardButton(text="👥 Referral Info", callback_data="referral:main"),
+            InlineKeyboardButton(text="🎁 Free Trial", callback_data="trial:start")
+        ],
+        [InlineKeyboardButton(text="📞 Contact Support", callback_data="contact_support")],
+        [InlineKeyboardButton(text="🔙 Back to Main", callback_data="back_to_main")]
+    ])
+
+    await callback.message.edit_text(help_text, reply_markup=keyboard, parse_mode="Markdown")
+    await callback.answer()
+
+
 class SupportStates(StatesGroup):
     waiting_for_support_message = State()
     waiting_for_order_id = State()

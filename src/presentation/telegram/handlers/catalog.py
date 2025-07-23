@@ -16,6 +16,18 @@ logger = logging.getLogger(__name__)
 catalog_router = Router(name="catalog")
 
 
+@catalog_router.callback_query(F.data == "show_catalog")
+@inject
+async def show_catalog_alias(
+    callback_query: CallbackQuery,
+    user: Optional[User],
+    product_service: ProductApplicationService,
+    settings: Settings
+) -> None:
+    """Show catalog (alias for catalog:main)."""
+    await show_catalog_main(callback_query, user, product_service, settings)
+
+
 @catalog_router.callback_query(F.data == "catalog:main")
 @inject
 async def show_catalog_main(

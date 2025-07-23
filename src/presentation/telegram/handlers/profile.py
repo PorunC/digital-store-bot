@@ -25,6 +25,65 @@ class ProfileStates(StatesGroup):
     waiting_for_language = State()
 
 
+@profile_router.callback_query(F.data == "profile:main")
+@inject
+async def show_profile_callback(
+    callback: CallbackQuery,
+    user: Optional[User],
+    user_service: UserApplicationService,
+    referral_service: ReferralApplicationService,
+    order_service: OrderApplicationService
+):
+    """Show user profile information via callback."""
+    if not user:
+        await callback.answer("❌ User not found. Please use /start first.", show_alert=True)
+        return
+
+    # Get user statistics
+    user_orders = await order_service.get_user_orders(str(user.id))
+    referral_stats = await referral_service.get_referral_statistics(str(user.id))
+    
+    # Format subscription info
+    sub_info = _format_subscription_info(user)
+    
+    # Format referral info
+    referral_info = (
+        f"👥 **Referrals**\n"
+        f"• Active: {referral_stats['active_referrals']}\n"
+        f"• Conversions: {referral_stats['converted_referrals']}\n"
+        f"• Rewards earned: {referral_stats['first_level_rewards_granted'] + referral_stats['second_level_rewards_granted']}\n"
+    )
+    
+    profile_text = (
+        f"👤 **Your Profile**\n\n"
+        f"🆔 ID: `{user.telegram_id}`\n"
+        f"👨‍💼 Name: {user.profile.first_name}\n"
+        f"🌐 Language: {user.profile.language_code or 'en'}\n"
+        f"📅 Joined: {user.created_at.strftime('%Y-%m-%d')}\n"
+        f"⏰ Last active: {user.last_activity_at.strftime('%Y-%m-%d %H:%M') if user.last_activity_at else 'Never'}\n\n"
+        f"{sub_info}\n"
+        f"{referral_info}\n"
+        f"🛍️ **Orders**\n"
+        f"• Total orders: {len(user_orders)}\n"
+        f"• Total spent: ${user.total_spent:.2f}\n"
+    )
+
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="🌐 Change Language", callback_data="profile_language"),
+            InlineKeyboardButton(text="🔄 Refresh", callback_data="profile_refresh")
+        ],
+        [
+            InlineKeyboardButton(text="👥 My Referrals", callback_data="profile_referrals"),
+            InlineKeyboardButton(text="🛍️ Order History", callback_data="profile_orders")
+        ],
+        [InlineKeyboardButton(text="🔙 Back to Main", callback_data="back_to_main")]
+    ])
+
+    await callback.message.edit_text(profile_text, reply_markup=keyboard, parse_mode="Markdown")
+    await callback.answer()
+
+
 @profile_router.message(Command("profile"))
 @inject
 async def show_profile(
@@ -266,6 +325,46 @@ async def show_orders(callback: CallbackQuery):
     ])
 
     await callback.message.edit_text(orders_text, reply_markup=keyboard, parse_mode="Markdown")
+    await callback.answer()
+
+
+@profile_router.callback_query(F.data == "referral:main")
+@inject
+async def show_referral_callback(
+    callback: CallbackQuery,
+    user: Optional[User]
+):
+    """Show referral program information via callback."""
+    if not user:
+        await callback.answer("❌ User not found. Please use /start first.", show_alert=True)
+        return
+
+    bot_info = await callback.bot.get_me()
+    referral_link = f"https://t.me/{bot_info.username}?start=ref_{user.telegram_id}"
+    
+    referral_text = (
+        f"👥 **Referral Program**\n\n"
+        f"🎁 **Earn rewards by referring friends!**\n\n"
+        f"**How it works:**\n"
+        f"1️⃣ Share your unique referral link\n"
+        f"2️⃣ Friends join using your link\n"
+        f"3️⃣ You get 7 days when they join\n"
+        f"4️⃣ You get 14 days when they purchase\n\n"
+        f"🔗 **Your referral link:**\n"
+        f"`{referral_link}`\n\n"
+        f"💡 **Tips:**\n"
+        f"• Share in groups and social media\n"
+        f"• Explain the benefits to friends\n"
+        f"• Help them get started\n"
+    )
+
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="👥 My Referrals", callback_data="profile_referrals")],
+        [InlineKeyboardButton(text="📋 Copy Link", callback_data="copy_referral_link")],
+        [InlineKeyboardButton(text="🔙 Back to Main", callback_data="back_to_main")]
+    ])
+
+    await callback.message.edit_text(referral_text, reply_markup=keyboard, parse_mode="Markdown")
     await callback.answer()
 
 
