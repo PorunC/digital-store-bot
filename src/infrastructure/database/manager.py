@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Optional, AsyncContextManager
+from typing import Optional, AsyncGenerator
 from contextlib import asynccontextmanager
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
@@ -86,7 +86,7 @@ class DatabaseManager:
         logger.info("Database tables dropped")
 
     @asynccontextmanager
-    async def get_session(self) -> AsyncContextManager[AsyncSession]:
+    async def get_session(self) -> AsyncGenerator[AsyncSession, None]:
         """Get a database session with proper context management."""
         if self._session_factory is None:
             raise RuntimeError("Database not initialized")
@@ -122,7 +122,8 @@ class DatabaseManager:
         
         try:
             async with self.get_session() as session:
-                await session.execute("SELECT 1")
+                from sqlalchemy import text
+                await session.execute(text("SELECT 1"))
                 return True
         except Exception as e:
             logger.error(f"Database health check failed: {e}")
