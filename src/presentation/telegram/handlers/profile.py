@@ -58,14 +58,14 @@ async def show_profile_callback(
         f"👤 **Your Profile**\n\n"
         f"🆔 ID: `{user.telegram_id}`\n"
         f"👨‍💼 Name: {user.profile.first_name}\n"
-        f"🌐 Language: {user.profile.language_code or 'en'}\n"
+        f"🌐 Language: {user.language_code or 'en'}\n"
         f"📅 Joined: {user.created_at.strftime('%Y-%m-%d')}\n"
-        f"⏰ Last active: {user.last_activity_at.strftime('%Y-%m-%d %H:%M') if user.last_activity_at else 'Never'}\n\n"
+        f"⏰ Last active: {user.last_active_at.strftime('%Y-%m-%d %H:%M') if user.last_active_at else 'Never'}\n\n"
         f"{sub_info}\n"
         f"{referral_info}\n"
         f"🛍️ **Orders**\n"
         f"• Total orders: {len(user_orders)}\n"
-        f"• Total spent: ${user.total_spent:.2f}\n"
+        f"• Total spent: ${user.total_spent_amount:.2f}\n"
     )
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -117,14 +117,14 @@ async def show_profile(
         f"👤 **Your Profile**\n\n"
         f"🆔 ID: `{user.telegram_id}`\n"
         f"👨‍💼 Name: {user.profile.first_name}\n"
-        f"🌐 Language: {user.profile.language_code or 'en'}\n"
+        f"🌐 Language: {user.language_code or 'en'}\n"
         f"📅 Joined: {user.created_at.strftime('%Y-%m-%d')}\n"
-        f"⏰ Last active: {user.last_activity_at.strftime('%Y-%m-%d %H:%M') if user.last_activity_at else 'Never'}\n\n"
+        f"⏰ Last active: {user.last_active_at.strftime('%Y-%m-%d %H:%M') if user.last_active_at else 'Never'}\n\n"
         f"{sub_info}\n"
         f"{referral_info}\n"
         f"🛍️ **Orders**\n"
         f"• Total orders: {len(user_orders)}\n"
-        f"• Total spent: ${user.total_spent:.2f}\n"
+        f"• Total spent: ${user.total_spent_amount:.2f}\n"
     )
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -420,7 +420,7 @@ async def trial_info(message: Message):
     
     trial_text = f"🎁 **Free Trial Program**\n\n"
     
-    if user.has_active_subscription():
+    if user.has_active_subscription:
         if user.subscription_type == SubscriptionType.TRIAL:
             expires_in = (user.subscription_expires_at - datetime.utcnow()).days
             trial_text += (
@@ -501,7 +501,7 @@ async def start_trial(callback: CallbackQuery):
 
 def _format_subscription_info(user) -> str:
     """Format user subscription information."""
-    if not user.has_active_subscription():
+    if not user.has_active_subscription:
         return (
             f"💎 **Subscription: Free**\n"
             f"⏰ No active subscription\n"
@@ -511,9 +511,9 @@ def _format_subscription_info(user) -> str:
     expires_in_days = (user.subscription_expires_at - datetime.utcnow()).days
     
     emoji = {
-        SubscriptionType.FREE: "🆓",
         SubscriptionType.TRIAL: "🎁", 
-        SubscriptionType.PREMIUM: "💎"
+        SubscriptionType.PREMIUM: "💎",
+        SubscriptionType.EXTENDED: "⭐"
     }.get(user.subscription_type, "❓")
     
     return (
