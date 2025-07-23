@@ -68,7 +68,7 @@ class SqlAlchemyReferralRepository(ReferralRepository):
         referral_model.activated_at = entity.activated_at
         referral_model.first_purchase_at = entity.first_purchase_at
         referral_model.invite_source = entity.invite_source
-        referral_model.metadata = entity.metadata
+        referral_model.tracking_data = entity.metadata
         referral_model.version = entity.version
 
         await self.session.flush()
@@ -232,7 +232,7 @@ class SqlAlchemyReferralRepository(ReferralRepository):
             activated_at=model.activated_at,
             first_purchase_at=model.first_purchase_at,
             invite_source=model.invite_source,
-            metadata=model.metadata or {}
+            metadata=model.tracking_data or {}
         )
 
         # Clear domain events as they come from persistence
@@ -254,5 +254,5 @@ class SqlAlchemyReferralRepository(ReferralRepository):
             activated_at=entity.activated_at,
             first_purchase_at=entity.first_purchase_at,
             invite_source=entity.invite_source,
-            metadata=entity.metadata
+            tracking_data=entity.metadata
         )
