@@ -204,6 +204,9 @@ async def main() -> None:
         db_manager = container.resolve(DatabaseManager)
         await db_manager.initialize()
         
+        # Create database tables if they don't exist
+        await db_manager.create_tables()
+        
         # Start Telegram bot and register bot instance in container
         telegram_bot = TelegramBot(settings)
         
