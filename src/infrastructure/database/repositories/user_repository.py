@@ -87,7 +87,7 @@ class SqlAlchemyUserRepository(UserRepository):
         user_model.first_name = entity.profile.first_name
         user_model.username = entity.profile.username
         user_model.language_code = entity.language_code
-        user_model.status = entity.status.value
+        user_model.status = _get_enum_value(entity.status)
         user_model.is_trial_used = entity.is_trial_used
         user_model.trial_expires_at = entity.trial_expires_at
         user_model.trial_type = _get_enum_value(entity.trial_type)
@@ -268,7 +268,7 @@ class SqlAlchemyUserRepository(UserRepository):
             first_name=entity.profile.first_name,
             username=entity.profile.username,
             language_code=entity.language_code,
-            status=entity.status.value,
+            status=_get_enum_value(entity.status),
             is_trial_used=entity.is_trial_used,
             trial_expires_at=entity.trial_expires_at,
             trial_type=_get_enum_value(entity.trial_type),
