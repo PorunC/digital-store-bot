@@ -42,27 +42,38 @@ class TelegramBot:
 
     async def _setup_middleware(self) -> None:
         """Setup bot middleware."""
-        from src.presentation.telegram.middleware.user_context import UserContextMiddleware
-        from src.presentation.telegram.middleware.database import DatabaseMiddleware
-        from src.presentation.telegram.middleware.localization import LocalizationMiddleware
-        from src.presentation.telegram.middleware.throttling import ThrottlingMiddleware
-        from src.presentation.telegram.middleware.logging_middleware import LoggingMiddleware
-        
-        # Setup middleware in order (first added is outermost)
-        self.dispatcher.message.middleware(LoggingMiddleware())
-        self.dispatcher.callback_query.middleware(LoggingMiddleware())
-        
-        self.dispatcher.message.middleware(ThrottlingMiddleware())
-        self.dispatcher.callback_query.middleware(ThrottlingMiddleware())
-        
-        self.dispatcher.message.middleware(DatabaseMiddleware())
-        self.dispatcher.callback_query.middleware(DatabaseMiddleware())
-        
-        self.dispatcher.message.middleware(LocalizationMiddleware())
-        self.dispatcher.callback_query.middleware(LocalizationMiddleware())
-        
-        self.dispatcher.message.middleware(UserContextMiddleware())
-        self.dispatcher.callback_query.middleware(UserContextMiddleware())
+        try:
+            from src.presentation.telegram.middleware.user_context import UserContextMiddleware
+            from src.presentation.telegram.middleware.database import DatabaseMiddleware
+            from src.presentation.telegram.middleware.localization import LocalizationMiddleware
+            from src.presentation.telegram.middleware.throttling import ThrottlingMiddleware
+            from src.presentation.telegram.middleware.logging_middleware import LoggingMiddleware
+            
+            # Setup middleware in order (first added is outermost)
+            self.dispatcher.message.middleware(LoggingMiddleware())
+            self.dispatcher.callback_query.middleware(LoggingMiddleware())
+            
+            self.dispatcher.message.middleware(ThrottlingMiddleware())
+            self.dispatcher.callback_query.middleware(ThrottlingMiddleware())
+            
+            self.dispatcher.message.middleware(DatabaseMiddleware())
+            self.dispatcher.callback_query.middleware(DatabaseMiddleware())
+            
+            self.dispatcher.message.middleware(LocalizationMiddleware())
+            self.dispatcher.callback_query.middleware(LocalizationMiddleware())
+            
+            self.dispatcher.message.middleware(UserContextMiddleware())
+            self.dispatcher.callback_query.middleware(UserContextMiddleware())
+            
+        except ImportError as e:
+            logger.warning(f"Some middleware could not be loaded: {e}")
+            # Setup minimal middleware for basic functionality
+            try:
+                from src.presentation.telegram.middleware.user_context import UserContextMiddleware
+                self.dispatcher.message.middleware(UserContextMiddleware())
+                self.dispatcher.callback_query.middleware(UserContextMiddleware())
+            except ImportError:
+                logger.error("Critical middleware missing - bot may not function properly")
 
     async def _setup_handlers(self) -> None:
         """Setup message handlers."""

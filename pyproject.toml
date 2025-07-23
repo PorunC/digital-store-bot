@@ -41,6 +41,9 @@ cachetools = "^5.5.0"
 requests = "^2.31.0"
 apscheduler = "^3.11.0"
 
+# Internationalization
+fluent-runtime = "^0.4.0"
+
 # Validation & Serialization
 marshmallow = "^3.23.0"
 marshmallow-dataclass = "^8.7.0"
