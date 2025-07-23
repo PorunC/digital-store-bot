@@ -8,7 +8,7 @@ from typing import Dict, Any, Callable, Awaitable, Optional
 from datetime import datetime
 
 from aiogram import BaseMiddleware
-from aiogram.types import Update, Message, CallbackQuery, InlineQuery
+from aiogram.types import Update, Message, CallbackQuery, InlineQuery, TelegramObject
 
 logger = logging.getLogger(__name__)
 
@@ -38,8 +38,8 @@ class LoggingMiddleware(BaseMiddleware):
     
     async def __call__(
         self,
-        handler: Callable[[Update, Dict[str, Any]], Awaitable[Any]],
-        event: Update,
+        handler: Callable[[TelegramObject, Dict[str, Any]], Awaitable[Any]],
+        event: TelegramObject,
         data: Dict[str, Any]
     ) -> Any:
         """Process update through logging middleware."""
@@ -109,7 +109,7 @@ class LoggingMiddleware(BaseMiddleware):
             # Re-raise the exception
             raise
     
-    def _extract_update_info(self, event: Update, request_id: str) -> Dict[str, Any]:
+    def _extract_update_info(self, event: TelegramObject, request_id: str) -> Dict[str, Any]:
         """Extract relevant information from update."""
         info = {
             "request_id": request_id,
@@ -119,14 +119,23 @@ class LoggingMiddleware(BaseMiddleware):
             "timestamp": datetime.utcnow().isoformat()
         }
         
-        if event.message:
-            info.update(self._extract_message_info(event.message))
-        elif event.callback_query:
-            info.update(self._extract_callback_info(event.callback_query))
-        elif event.inline_query:
-            info.update(self._extract_inline_info(event.inline_query))
-        elif event.edited_message:
-            info.update(self._extract_message_info(event.edited_message, is_edit=True))
+        # Handle different event types directly
+        if isinstance(event, Message):
+            info.update(self._extract_message_info(event))
+        elif isinstance(event, CallbackQuery):
+            info.update(self._extract_callback_info(event))
+        elif isinstance(event, InlineQuery):
+            info.update(self._extract_inline_info(event))
+        elif isinstance(event, Update):
+            # Handle Update objects (for backwards compatibility)
+            if event.message:
+                info.update(self._extract_message_info(event.message))
+            elif event.callback_query:
+                info.update(self._extract_callback_info(event.callback_query))
+            elif event.inline_query:
+                info.update(self._extract_inline_info(event.inline_query))
+            elif event.edited_message:
+                info.update(self._extract_message_info(event.edited_message, is_edit=True))
         
         return info
     
