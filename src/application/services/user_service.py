@@ -74,11 +74,13 @@ class UserApplicationService:
 
     async def get_user_by_telegram_id(self, telegram_id: int) -> Optional[User]:
         """Get user by Telegram ID."""
-        return await self._get_user_repository().get_by_telegram_id(telegram_id)
+        async with self.unit_of_work:
+            return await self._get_user_repository().get_by_telegram_id(telegram_id)
 
     async def get_user_by_id(self, user_id: str) -> Optional[User]:
         """Get user by ID."""
-        return await self._get_user_repository().get_by_id(user_id)
+        async with self.unit_of_work:
+            return await self._get_user_repository().get_by_id(user_id)
 
     async def start_trial(
         self,
@@ -224,19 +226,23 @@ class UserApplicationService:
 
     async def find_users_by_referrer(self, referrer_id: str) -> List[User]:
         """Find users referred by a specific user."""
-        return await self._get_user_repository().find_by_referrer_id(referrer_id)
+        async with self.unit_of_work:
+            return await self._get_user_repository().find_by_referrer_id(referrer_id)
 
     async def find_premium_users(self) -> List[User]:
         """Find users with active premium subscriptions."""
-        return await self._get_user_repository().find_premium_users()
+        async with self.unit_of_work:
+            return await self._get_user_repository().find_premium_users()
 
     async def find_expiring_users(self, days: int) -> List[User]:
         """Find users whose premium expires within specified days."""
-        return await self._get_user_repository().find_expiring_users(days)
+        async with self.unit_of_work:
+            return await self._get_user_repository().find_expiring_users(days)
 
     async def get_user_statistics(self) -> dict:
         """Get user statistics."""
-        return await self._get_user_repository().get_user_statistics()
+        async with self.unit_of_work:
+            return await self._get_user_repository().get_user_statistics()
 
     async def _publish_events(self, user: User) -> None:
         """Publish domain events."""
