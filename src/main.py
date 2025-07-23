@@ -78,11 +78,11 @@ async def setup_dependencies() -> None:
     # Get session factory for UnitOfWork usage
     session_factory = db_manager.get_session_factory()
     
-    # Repository factories - only for backwards compatibility
-    # New services should use UnitOfWork pattern exclusively
+    # Repository factories - TEMPORARY implementation with session management
+    # TODO: All services should be refactored to use only UnitOfWork pattern
     def create_user_repository() -> UserRepository:
-        # Temporary implementation for compatibility
-        # TODO: Remove once all services use UnitOfWork exclusively
+        # Using create_session with warning - this causes connection leaks
+        # Should be replaced with UnitOfWork pattern
         return SqlAlchemyUserRepository(db_manager.create_session())
     
     def create_product_repository() -> ProductRepository:
