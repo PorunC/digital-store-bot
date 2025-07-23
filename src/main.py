@@ -204,14 +204,21 @@ async def main() -> None:
         db_manager = container.resolve(DatabaseManager)
         await db_manager.initialize()
         
-        # Import all models to register them with Base.metadata
-        from src.infrastructure.database.models import (
-            UserModel, ProductModel, OrderModel, ReferralModel, 
-            PromocodeModel, InviteModel
+        # Run database migrations
+        from src.infrastructure.database.migrations.migration_manager import MigrationManager
+        migration_manager = MigrationManager(
+            database_url=settings.database.get_url(),
+            migrations_path="src/infrastructure/database/migrations"
         )
+        await migration_manager.initialize()
         
-        # Create database tables if they don't exist
-        await db_manager.create_tables()
+        # Apply pending migrations
+        migration_result = await migration_manager.apply_migrations()
+        if migration_result["errors"] > 0:
+            logger.error(f"Migration failed: {migration_result}")
+            sys.exit(1)
+        
+        logger.info(f"Migration completed: {migration_result['applied']} migrations applied")
         
         # Start Telegram bot and register bot instance in container
         telegram_bot = TelegramBot(settings)

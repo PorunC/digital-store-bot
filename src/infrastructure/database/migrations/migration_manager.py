@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import importlib
+import importlib.util
 import inspect
 from datetime import datetime
 from pathlib import Path
@@ -73,7 +74,7 @@ class MigrationManager:
                 
                 try:
                     # Import the migration module
-                    module_name = f"migrations.{migration_file.stem}"
+                    module_name = f"src.infrastructure.database.migrations.{migration_file.stem}"
                     spec = importlib.util.spec_from_file_location(module_name, migration_file)
                     module = importlib.util.module_from_spec(spec)
                     spec.loader.exec_module(module)
