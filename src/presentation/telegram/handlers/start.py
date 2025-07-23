@@ -5,7 +5,7 @@ from typing import Optional
 
 from aiogram import Router, F
 from aiogram.filters import CommandStart
-from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 
 from src.domain.entities.user import User
 from src.application.services.user_service import UserApplicationService
@@ -196,7 +196,7 @@ Would you like to start your free trial?
 @start_router.callback_query(F.data.startswith("trial:"))
 @inject
 async def handle_trial_callback(
-    callback_query,
+    callback_query: CallbackQuery,
     user: User,
     user_service: UserApplicationService,
     settings: Settings

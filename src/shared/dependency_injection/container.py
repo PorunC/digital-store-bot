@@ -160,9 +160,34 @@ class Container:
                     f"Cannot resolve parameter '{param_name}' for {implementation}"
                 )
 
+            # Skip resolution for typing.Any and other unresolvable types
+            if self._is_unresolvable_type(param_type):
+                if param.default != inspect.Parameter.empty:
+                    continue
+                raise DependencyNotFound(
+                    f"Cannot resolve parameter '{param_name}' for {param_type}"
+                )
+
             kwargs[param_name] = self.resolve(param_type)
 
         return implementation(**kwargs)
+
+    def _is_unresolvable_type(self, param_type: Any) -> bool:
+        """Check if a type cannot be resolved by the DI container."""
+        # typing.Any
+        if param_type is Any:
+            return True
+            
+        # Check for typing module types that can't be instantiated
+        if hasattr(param_type, '__module__') and param_type.__module__ == 'typing':
+            return True
+            
+        # Check for generic aliases like Dict, List, etc.
+        if hasattr(param_type, '__origin__'):
+            # These are generic types like Dict[str, Any], List[str], etc.
+            return True
+            
+        return False
 
     def _inject_dependencies(self, func: Callable[..., T]) -> Callable[..., T]:
         """Inject dependencies into a function."""
@@ -175,7 +200,7 @@ class Container:
                     continue
 
                 param_type = type_hints.get(param_name, param.annotation)
-                if param_type != inspect.Parameter.empty:
+                if param_type != inspect.Parameter.empty and not self._is_unresolvable_type(param_type):
                     kwargs[param_name] = self.resolve(param_type)
 
             return func(*args, **kwargs)
