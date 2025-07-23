@@ -226,8 +226,8 @@ async def process_promocode(message: Message):
             )
             
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="👤 View Profile", callback_data="profile_refresh")],
-                [InlineKeyboardButton(text="🛍️ Browse Catalog", callback_data="show_catalog")]
+                [InlineKeyboardButton(text="👤 View Profile", callback_data="profile:main")],
+                [InlineKeyboardButton(text="🛍️ Browse Catalog", callback_data="catalog:main")]
             ])
             
             await message.answer(success_text, reply_markup=keyboard, parse_mode="Markdown")
@@ -298,8 +298,8 @@ async def cancel_order(callback: CallbackQuery):
             f"Any reserved stock has been released.\n\n"
             f"You can browse our catalog anytime!",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="🛍️ Browse Catalog", callback_data="show_catalog")],
-                [InlineKeyboardButton(text="👤 Profile", callback_data="profile_refresh")]
+                [InlineKeyboardButton(text="🛍️ Browse Catalog", callback_data="catalog:main")],
+                [InlineKeyboardButton(text="👤 Profile", callback_data="profile:main")]
             ]),
             parse_mode="Markdown"
         )
@@ -379,8 +379,8 @@ async def process_successful_payment(message: Message):
         )
         
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="👤 View Profile", callback_data="profile_refresh")],
-            [InlineKeyboardButton(text="🛍️ Browse More", callback_data="show_catalog")]
+            [InlineKeyboardButton(text="👤 View Profile", callback_data="profile:main")],
+            [InlineKeyboardButton(text="🛍️ Browse More", callback_data="catalog:main")]
         ])
         
         await message.answer(success_text, reply_markup=keyboard, parse_mode="Markdown")
@@ -434,8 +434,8 @@ async def show_orders_command(message: Message):
         orders_text += f"... and {len(orders) - 10} more orders\n"
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="👤 Profile", callback_data="profile_refresh")],
-        [InlineKeyboardButton(text="🛍️ Browse Catalog", callback_data="show_catalog")]
+        [InlineKeyboardButton(text="👤 Profile", callback_data="profile:main")],
+        [InlineKeyboardButton(text="🛍️ Browse Catalog", callback_data="catalog:main")]
     ])
 
     await message.answer(orders_text, reply_markup=keyboard, parse_mode="Markdown")
@@ -464,3 +464,143 @@ async def handle_payment_webhook(payment_method: str, webhook_data: Dict[str, An
     except Exception as e:
         print(f"Error processing webhook: {str(e)}")
         return {"status": "error", "message": str(e)}
+
+
+# Add missing payment method handlers
+@payment_router.callback_query(F.data.startswith("payment:stars:"))
+@inject
+async def handle_stars_payment(
+    callback: CallbackQuery,
+    user: Optional[User],
+    product_service: ProductApplicationService,
+    order_service: OrderApplicationService,
+    payment_service: PaymentApplicationService
+):
+    """Handle Telegram Stars payment."""
+    try:
+        if not user:
+            await callback.answer("❌ User not found. Please use /start first.", show_alert=True)
+            return
+
+        product_id = callback.data.split(":")[-1]
+        product = await product_service.get_product_by_id(product_id)
+        
+        if not product:
+            await callback.answer("❌ Product not found.", show_alert=True)
+            return
+
+        if not product.is_available:
+            await callback.answer("❌ Product is not available.", show_alert=True)
+            return
+
+        # Create order first
+        order = await order_service.create_order(
+            user_id=str(user.id),
+            product_id=product_id,
+            payment_method=PaymentMethod.TELEGRAM_STARS
+        )
+
+        # Create Telegram Stars invoice
+        payment_result = await payment_service.create_payment(
+            order_id=str(order.id),
+            payment_method=PaymentMethod.TELEGRAM_STARS
+        )
+
+        if payment_result.success:
+            # Create Telegram Stars invoice
+            prices = [LabeledPrice(label=product.name, amount=int(product.price.amount * 100))]  # Stars are in kopecks
+            
+            await callback.message.bot.send_invoice(
+                chat_id=callback.message.chat.id,
+                title=f"Purchase: {product.name}",
+                description=product.description,
+                payload=str(order.id),
+                provider_token="",  # Empty for Telegram Stars
+                currency="XTR",  # Telegram Stars currency
+                prices=prices,
+                start_parameter=f"order_{order.id}"
+            )
+            
+            await callback.message.edit_text(
+                f"⭐ **Telegram Stars Payment**\n\n"
+                f"📦 Product: {product.name}\n"
+                f"💰 Price: {int(product.price.amount)} Stars\n\n"
+                f"An invoice has been sent above. Complete the payment to receive your product!",
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="🔙 Back to Product", callback_data=f"product:view:{product_id}")]
+                ]),
+                parse_mode="Markdown"
+            )
+        else:
+            await callback.answer("❌ Failed to create payment. Please try again.", show_alert=True)
+        
+        await callback.answer()
+        
+    except Exception as e:
+        await callback.answer(f"❌ Error: {str(e)}", show_alert=True)
+
+
+@payment_router.callback_query(F.data.startswith("payment:crypto:"))
+@inject
+async def handle_crypto_payment(
+    callback: CallbackQuery,
+    user: Optional[User],
+    product_service: ProductApplicationService,
+    order_service: OrderApplicationService,
+    payment_service: PaymentApplicationService
+):
+    """Handle cryptocurrency payment."""
+    try:
+        if not user:
+            await callback.answer("❌ User not found. Please use /start first.", show_alert=True)
+            return
+
+        product_id = callback.data.split(":")[-1]
+        product = await product_service.get_product_by_id(product_id)
+        
+        if not product:
+            await callback.answer("❌ Product not found.", show_alert=True)
+            return
+
+        if not product.is_available:
+            await callback.answer("❌ Product is not available.", show_alert=True)
+            return
+
+        # Create order first
+        order = await order_service.create_order(
+            user_id=str(user.id),
+            product_id=product_id,
+            payment_method=PaymentMethod.CRYPTOMUS
+        )
+
+        # Create cryptocurrency payment
+        payment_result = await payment_service.create_payment(
+            order_id=str(order.id),
+            payment_method=PaymentMethod.CRYPTOMUS
+        )
+
+        if payment_result.success and payment_result.payment_url:
+            await callback.message.edit_text(
+                f"💰 **Cryptocurrency Payment**\n\n"
+                f"📦 Product: {product.name}\n"
+                f"💵 Price: ${product.price.amount:.2f} {product.price.currency.upper()}\n\n"
+                f"**Supported Cryptocurrencies:**\n"
+                f"• Bitcoin (BTC)\n"
+                f"• Ethereum (ETH)\n"
+                f"• Tether (USDT)\n"
+                f"• And more...\n\n"
+                f"Click the button below to complete your payment:",
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="💳 Pay with Crypto", url=payment_result.payment_url)],
+                    [InlineKeyboardButton(text="🔍 Check Payment", callback_data=f"check_payment_{order.id}")],
+                    [InlineKeyboardButton(text="🔙 Back to Product", callback_data=f"product:view:{product_id}")]
+                ]),
+                parse_mode="Markdown"
+            )
+        else:
+            await callback.answer("❌ Failed to create payment. Please try again.", show_alert=True)
+        
+        await callback.answer()
+        
+    except Exception as e:
+        await callback.answer(f"❌ Error: {str(e)}", show_alert=True)
