@@ -42,13 +42,44 @@ class TelegramBot:
 
     async def _setup_middleware(self) -> None:
         """Setup bot middleware."""
-        # TODO: Add middleware for database, authentication, etc.
-        pass
+        from src.presentation.telegram.middleware.user_context import UserContextMiddleware
+        from src.presentation.telegram.middleware.database import DatabaseMiddleware
+        from src.presentation.telegram.middleware.localization import LocalizationMiddleware
+        from src.presentation.telegram.middleware.throttling import ThrottlingMiddleware
+        from src.presentation.telegram.middleware.logging_middleware import LoggingMiddleware
+        
+        # Setup middleware in order (first added is outermost)
+        self.dispatcher.message.middleware(LoggingMiddleware())
+        self.dispatcher.callback_query.middleware(LoggingMiddleware())
+        
+        self.dispatcher.message.middleware(ThrottlingMiddleware())
+        self.dispatcher.callback_query.middleware(ThrottlingMiddleware())
+        
+        self.dispatcher.message.middleware(DatabaseMiddleware())
+        self.dispatcher.callback_query.middleware(DatabaseMiddleware())
+        
+        self.dispatcher.message.middleware(LocalizationMiddleware())
+        self.dispatcher.callback_query.middleware(LocalizationMiddleware())
+        
+        self.dispatcher.message.middleware(UserContextMiddleware())
+        self.dispatcher.callback_query.middleware(UserContextMiddleware())
 
     async def _setup_handlers(self) -> None:
         """Setup message handlers."""
-        # TODO: Register command and message handlers
-        pass
+        from src.presentation.telegram.handlers.start import start_router
+        from src.presentation.telegram.handlers.catalog import catalog_router
+        from src.presentation.telegram.handlers.payment import payment_router
+        from src.presentation.telegram.handlers.profile import profile_router
+        from src.presentation.telegram.handlers.admin import admin_router
+        from src.presentation.telegram.handlers.support import support_router
+        
+        # Register routers
+        self.dispatcher.include_router(start_router)
+        self.dispatcher.include_router(catalog_router)
+        self.dispatcher.include_router(payment_router)
+        self.dispatcher.include_router(profile_router)
+        self.dispatcher.include_router(admin_router)
+        self.dispatcher.include_router(support_router)
 
     async def _start_polling(self) -> None:
         """Start bot in polling mode."""
@@ -61,8 +92,14 @@ class TelegramBot:
         from aiohttp import web, ClientSession
         from aiohttp.web import run_app
         
-        # Set webhook
+        # Build webhook URL from domain and bot token if not explicitly set
         webhook_url = self.settings.external.webhook_url
+        if not webhook_url and self.settings.bot.domain:
+            # Extract bot token (before the colon)
+            bot_token = self.settings.bot.token.split(':')[0] if ':' in self.settings.bot.token else self.settings.bot.token
+            webhook_url = f"https://{self.settings.bot.domain}/webhook/bot{bot_token}"
+        
+        webhook_path = None
         if webhook_url:
             # Remove existing webhook first
             await self.bot.delete_webhook()
@@ -73,6 +110,11 @@ class TelegramBot:
                 drop_pending_updates=True
             )
             logger.info(f"Webhook set to {webhook_url}")
+            
+            # Extract path from webhook URL for routing
+            from urllib.parse import urlparse
+            parsed_url = urlparse(webhook_url)
+            webhook_path = parsed_url.path
         
         # Create web application
         app = web.Application()
@@ -88,7 +130,13 @@ class TelegramBot:
         async def health_handler(request):
             return web.json_response({"status": "healthy"})
         
-        app.router.add_post("/webhook", webhook_handler)
+        # Add webhook route with correct path
+        if webhook_path:
+            app.router.add_post(webhook_path, webhook_handler)
+        else:
+            # Fallback to default webhook route
+            app.router.add_post("/webhook", webhook_handler)
+            
         app.router.add_get("/health", health_handler)
         
         # Start web server
