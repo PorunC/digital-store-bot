@@ -20,12 +20,23 @@ start_router = Router(name="start")
 @inject
 async def start_command(
     message: Message,
-    user: User,
+    user: Optional[User],
     user_service: UserApplicationService,
     settings: Settings
 ) -> None:
     """Handle /start command with referral support."""
     try:
+        # Handle case when user context is not available (database error)
+        if user is None:
+            logger.warning("User context not available, showing basic welcome message")
+            await message.answer(
+                "🤖 <b>Welcome to Digital Store!</b>\n\n"
+                "⚠️ We're experiencing some technical issues. Please try again in a moment.",
+                reply_markup=_create_basic_keyboard(),
+                parse_mode="HTML"
+            )
+            return
+        
         # Welcome message
         welcome_text = _get_welcome_message(user, settings)
         
@@ -197,12 +208,21 @@ Would you like to start your free trial?
 @inject
 async def handle_trial_callback(
     callback_query: CallbackQuery,
-    user: User,
+    user: Optional[User],
     user_service: UserApplicationService,
     settings: Settings
 ) -> None:
     """Handle trial-related callbacks."""
     try:
+        # Handle case when user context is not available
+        if user is None:
+            await callback_query.message.edit_text(
+                "⚠️ We're experiencing some technical issues. Please try again in a moment.",
+                reply_markup=_create_basic_keyboard()
+            )
+            await callback_query.answer()
+            return
+            
         action = callback_query.data.split(":")
         
         if len(action) >= 2 and action[1] == "activate":

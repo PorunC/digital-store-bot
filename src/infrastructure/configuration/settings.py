@@ -36,6 +36,11 @@ class DatabaseConfig(BaseModel):
 
     def get_url(self) -> str:
         """Get database URL."""
+        # Check for environment variable first (Docker/production)
+        database_url = os.getenv("DATABASE_URL")
+        if database_url:
+            return database_url
+            
         if self.driver.startswith("sqlite"):
             # Use absolute path and ensure directory exists
             import os
