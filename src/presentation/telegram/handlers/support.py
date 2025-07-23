@@ -391,9 +391,14 @@ async def show_help_callback(callback: CallbackQuery):
 
 
 # Command aliases for support
-@support_router.message(Command(["contact", "ticket"]))
+@support_router.message(Command("contact"))
 async def contact_alias(message: Message):
-    """Alternative commands for contacting support."""
+    """Alternative command for contacting support."""
+    await contact_support(message)
+
+@support_router.message(Command("ticket"))
+async def ticket_alias(message: Message):
+    """Alternative command for creating support ticket."""
     await contact_support(message)
 
 
