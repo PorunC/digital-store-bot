@@ -165,3 +165,4 @@ Thumbs.db
 
 .env
 settings.yml
+poetry.lock
