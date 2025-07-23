@@ -18,8 +18,8 @@ class AddMissingReferralFieldsMigration(BaseMigration):
     def _get_description(self) -> str:
         return "Add missing fields to referrals table"
     
-    def _get_version(self) -> int:
-        return 20250723_000003
+    def _get_version(self) -> str:
+        return "1.0.3"
 
     async def up(self, session: AsyncSession) -> None:
         """Apply the migration."""
