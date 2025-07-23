@@ -143,11 +143,27 @@ async def show_profile(
 
 
 @profile_router.callback_query(F.data == "profile_refresh")
-async def refresh_profile(callback: CallbackQuery):
+@inject
+async def refresh_profile(
+    callback: CallbackQuery,
+    user: Optional[User],
+    user_service: UserApplicationService,
+    referral_service: ReferralApplicationService,
+    order_service: OrderApplicationService
+):
     """Refresh profile information."""
-    await callback.message.delete()
-    await show_profile(callback.message)
-    await callback.answer("Profile refreshed!")
+    if not user:
+        await callback.answer("❌ User not found. Please use /start first.", show_alert=True)
+        return
+
+    try:
+        # Try to delete the message, but don't fail if it doesn't exist
+        await callback.message.delete()
+    except Exception:
+        pass  # Ignore if message can't be deleted
+
+    # Call the same logic as show_profile_callback
+    await show_profile_callback(callback, user, user_service, referral_service, order_service)
 
 
 @profile_router.callback_query(F.data == "profile_language")
@@ -205,9 +221,31 @@ async def set_language(callback: CallbackQuery):
     lang_name = language_names.get(language_code, language_code)
     await callback.answer(f"✅ Language changed to {lang_name}")
     
-    # Refresh profile
-    await callback.message.delete()
-    await show_profile(callback.message)
+    # Refresh profile - redirect to profile_refresh
+    await callback.answer()
+    
+    # Create a new callback with profile_refresh data
+    from aiogram.types import CallbackQuery as CQ
+    refresh_callback = CQ(
+        id=callback.id,
+        from_user=callback.from_user,
+        message=callback.message,
+        data="profile_refresh"
+    )
+    
+    # Call refresh_profile handler which will handle everything properly
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
+        
+    # Get services
+    user_service = container.get(UserApplicationService)
+    referral_service = container.get(ReferralApplicationService)
+    order_service = container.get(OrderApplicationService)
+    
+    # Call show_profile_callback with proper parameters
+    await show_profile_callback(callback, user, user_service, referral_service, order_service)
 
 
 @profile_router.callback_query(F.data == "profile_referrals")
