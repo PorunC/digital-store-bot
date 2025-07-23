@@ -177,6 +177,17 @@ class Container:
         # typing.Any
         if param_type is Any:
             return True
+        
+        # Check for the string "typing.Any" case which can happen with forward references
+        if str(param_type) == "typing.Any" or str(param_type) == "<class 'typing.Any'>":
+            return True
+        
+        # Handle cases where param_type is actually typing.Any but might be coming from different contexts
+        try:
+            if str(param_type.__name__) == 'Any' or param_type.__name__ == 'Any':
+                return True
+        except AttributeError:
+            pass
             
         # Check for typing module types that can't be instantiated
         if hasattr(param_type, '__module__') and param_type.__module__ == 'typing':
@@ -186,13 +197,31 @@ class Container:
         if hasattr(param_type, '__origin__'):
             # These are generic types like Dict[str, Any], List[str], etc.
             return True
+        
+        # Check for Union types (including Optional)
+        if hasattr(param_type, '__args__') and hasattr(param_type, '__origin__'):
+            return True
+        
+        # Safety check for any parameter type that contains 'Any' in its string representation
+        param_str = str(param_type).lower()
+        if 'typing.any' in param_str or 'any' in param_str and 'typing' in param_str:
+            return True
             
         return False
 
     def _inject_dependencies(self, func: Callable[..., T]) -> Callable[..., T]:
         """Inject dependencies into a function."""
         signature = inspect.signature(func)
-        type_hints = get_type_hints(func)
+        
+        # Try to get type hints safely
+        type_hints = {}
+        try:
+            type_hints = get_type_hints(func)
+        except (NameError, AttributeError, TypeError) as e:
+            # If type hints can't be resolved, fall back to raw annotations
+            for param_name, param in signature.parameters.items():
+                if param.annotation != inspect.Parameter.empty:
+                    type_hints[param_name] = param.annotation
 
         def wrapper(*args, **kwargs):
             for param_name, param in signature.parameters.items():
@@ -201,7 +230,11 @@ class Container:
 
                 param_type = type_hints.get(param_name, param.annotation)
                 if param_type != inspect.Parameter.empty and not self._is_unresolvable_type(param_type):
-                    kwargs[param_name] = self.resolve(param_type)
+                    try:
+                        kwargs[param_name] = self.resolve(param_type)
+                    except DependencyNotFound:
+                        # Skip parameters that can't be resolved instead of failing
+                        continue
 
             return func(*args, **kwargs)
 
