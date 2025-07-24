@@ -7,7 +7,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
 from src.application.services import UserApplicationService, OrderApplicationService
-from src.shared.dependency_injection import container
+from src.core.containers import container
 
 support_router = Router()
 

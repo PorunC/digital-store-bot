@@ -23,7 +23,7 @@ from src.domain.entities.product import ProductCategory, ProductStatus
 from src.domain.entities.promocode import PromocodeType
 from src.domain.entities.user import SubscriptionType
 from src.domain.value_objects.product_info import DeliveryType
-from src.shared.dependency_injection import container
+from src.core.containers import container
 
 admin_router = Router()
 

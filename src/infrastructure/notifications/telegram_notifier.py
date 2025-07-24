@@ -3,7 +3,7 @@
 import logging
 from typing import Dict, Any, Optional, List
 
-from src.core.containers import container
+# Removed circular import - container reference
 
 logger = logging.getLogger(__name__)
 
@@ -11,9 +11,10 @@ logger = logging.getLogger(__name__)
 class TelegramNotifier:
     """Telegram notification service."""
     
-    def __init__(self):
-        self.bot = None  # Will be injected via container
-        self.admin_chat_ids = [123456789]  # Configure admin chat IDs
+    def __init__(self, bot_token: str, admin_ids: List[int]):
+        self.bot_token = bot_token
+        self.admin_chat_ids = admin_ids
+        self.bot = None  # Will be set when needed
         
     async def send_notification(self, notification_data: Dict[str, Any]) -> bool:
         """Send notification via Telegram."""

@@ -16,7 +16,9 @@ from src.application.services import (
     TrialApplicationService
 )
 from src.domain.entities.user import User, SubscriptionType
-from src.shared.dependency_injection import container, inject
+from src.core.containers import container
+from dependency_injector.wiring import inject, Provide
+from src.core.containers import ApplicationContainer
 
 profile_router = Router()
 

@@ -7,7 +7,7 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 
 from src.infrastructure.configuration.settings import Settings
-from src.shared.dependency_injection import inject
+# Removed dependency injection import - not needed in this file
 
 logger = logging.getLogger(__name__)
 

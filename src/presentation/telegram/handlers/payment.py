@@ -19,7 +19,9 @@ from src.application.services import (
 )
 from src.domain.entities.order import PaymentMethod
 from src.domain.entities.user import User
-from src.shared.dependency_injection import container, inject
+from src.core.containers import container
+from dependency_injector.wiring import inject, Provide
+from src.core.containers import ApplicationContainer
 
 payment_router = Router()
 
