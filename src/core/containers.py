@@ -3,36 +3,83 @@
 from dependency_injector import containers, providers
 from dependency_injector.wiring import Provide
 
-from ..infrastructure.configuration.settings import Settings
-from ..infrastructure.database.manager import DatabaseManager
-from ..infrastructure.database.unit_of_work import UnitOfWork
+# Use lazy imports to avoid circular import issues
 
-# Repository providers
-from ..infrastructure.database.repositories.user_repository import SqlAlchemyUserRepository
-from ..infrastructure.database.repositories.product_repository import SqlAlchemyProductRepository
-from ..infrastructure.database.repositories.order_repository import SqlAlchemyOrderRepository
-from ..infrastructure.database.repositories.referral_repository import SqlAlchemyReferralRepository
-from ..infrastructure.database.repositories.promocode_repository import SqlAlchemyPromocodeRepository
-from ..infrastructure.database.repositories.invite_repository import SqlAlchemyInviteRepository
 
-# Application services
-from ..application.services.user_service import UserApplicationService
-from ..application.services.product_service import ProductApplicationService
-from ..application.services.order_service import OrderApplicationService
-from ..application.services.payment_service import PaymentApplicationService
-from ..application.services.referral_service import ReferralApplicationService
-from ..application.services.promocode_service import PromocodeApplicationService
-from ..application.services.trial_service import TrialApplicationService
-from ..application.services.product_loader_service import ProductLoaderService
+def _create_database_manager(settings):
+    """Factory for DatabaseManager."""
+    from ..infrastructure.database.manager import DatabaseManager
+    return DatabaseManager(settings.database)
 
-# Infrastructure services
-from ..infrastructure.external.payment_gateways.factory import PaymentGatewayFactory
-from ..infrastructure.notifications.notification_service import NotificationService
-from ..infrastructure.notifications.telegram_notifier import TelegramNotifier
-from ..infrastructure.external.analytics.analytics_service import AnalyticsService
+def _create_unit_of_work(db_manager):
+    """Factory for UnitOfWork."""
+    from ..infrastructure.database.unit_of_work import UnitOfWork
+    return UnitOfWork(db_manager.get_session_factory())
 
-# Event system
-from ..shared.events.bus import EventBus
+def _create_event_bus():
+    """Factory for EventBus."""
+    from ..shared.events.bus import EventBus
+    return EventBus()
+
+def _create_telegram_notifier(bot_token, admin_ids):
+    """Factory for TelegramNotifier."""
+    from ..infrastructure.notifications.telegram_notifier import TelegramNotifier
+    return TelegramNotifier(bot_token, admin_ids)
+
+def _create_notification_service(telegram_notifier):
+    """Factory for NotificationService."""
+    from ..infrastructure.notifications.notification_service import NotificationService
+    return NotificationService(telegram_notifier)
+
+def _create_payment_gateway_factory(settings):
+    """Factory for PaymentGatewayFactory."""
+    from ..infrastructure.external.payment_gateways.factory import PaymentGatewayFactory
+    return PaymentGatewayFactory(settings)
+
+def _create_analytics_service(settings):
+    """Factory for AnalyticsService."""
+    from ..infrastructure.external.analytics.analytics_service import AnalyticsService
+    return AnalyticsService(settings)
+
+def _create_user_service(unit_of_work, event_bus):
+    """Factory for UserApplicationService."""
+    from ..application.services.user_service import UserApplicationService
+    return UserApplicationService(unit_of_work, event_bus)
+
+def _create_product_service(unit_of_work, event_bus):
+    """Factory for ProductApplicationService."""
+    from ..application.services.product_service import ProductApplicationService
+    return ProductApplicationService(unit_of_work, event_bus)
+
+def _create_order_service(unit_of_work, event_bus):
+    """Factory for OrderApplicationService."""
+    from ..application.services.order_service import OrderApplicationService
+    return OrderApplicationService(unit_of_work, event_bus)
+
+def _create_payment_service(unit_of_work, gateway_factory, event_bus):
+    """Factory for PaymentApplicationService."""
+    from ..application.services.payment_service import PaymentApplicationService
+    return PaymentApplicationService(unit_of_work, gateway_factory, event_bus)
+
+def _create_referral_service(unit_of_work, event_bus):
+    """Factory for ReferralApplicationService."""
+    from ..application.services.referral_service import ReferralApplicationService
+    return ReferralApplicationService(unit_of_work, event_bus)
+
+def _create_promocode_service(unit_of_work, event_bus):
+    """Factory for PromocodeApplicationService."""
+    from ..application.services.promocode_service import PromocodeApplicationService
+    return PromocodeApplicationService(unit_of_work, event_bus)
+
+def _create_trial_service(unit_of_work, event_bus):
+    """Factory for TrialApplicationService."""
+    from ..application.services.trial_service import TrialApplicationService
+    return TrialApplicationService(unit_of_work, event_bus)
+
+def _create_product_loader_service(unit_of_work, settings):
+    """Factory for ProductLoaderService."""
+    from ..application.services.product_loader_service import ProductLoaderService
+    return ProductLoaderService(unit_of_work, settings)
 
 
 class ApplicationContainer(containers.DeclarativeContainer):
@@ -46,10 +93,9 @@ class ApplicationContainer(containers.DeclarativeContainer):
     
     # Database
     database_manager = providers.Singleton(
-        DatabaseManager,
-        config=providers.Callable(
-            lambda s: s.database,
-            s=settings
+        providers.Callable(
+            _create_database_manager,
+            settings=settings
         )
     )
     
@@ -62,116 +108,113 @@ class ApplicationContainer(containers.DeclarativeContainer):
     
     # Unit of Work
     unit_of_work = providers.Factory(
-        UnitOfWork,
-        session_factory=database_session_factory
+        providers.Callable(
+            _create_unit_of_work,
+            db_manager=database_manager
+        )
     )
     
     # Event Bus
-    event_bus = providers.Singleton(EventBus)
-    
-    # Repositories
-    user_repository = providers.Factory(
-        SqlAlchemyUserRepository,
-        session_factory=database_session_factory
-    )
-    
-    product_repository = providers.Factory(
-        SqlAlchemyProductRepository,
-        session_factory=database_session_factory
-    )
-    
-    order_repository = providers.Factory(
-        SqlAlchemyOrderRepository,
-        session_factory=database_session_factory
-    )
-    
-    referral_repository = providers.Factory(
-        SqlAlchemyReferralRepository,
-        session_factory=database_session_factory
-    )
-    
-    promocode_repository = providers.Factory(
-        SqlAlchemyPromocodeRepository,
-        session_factory=database_session_factory
-    )
-    
-    invite_repository = providers.Factory(
-        SqlAlchemyInviteRepository,
-        session_factory=database_session_factory
+    event_bus = providers.Singleton(
+        providers.Callable(_create_event_bus)
     )
     
     # Notification services
     telegram_notifier = providers.Singleton(
-        TelegramNotifier,
-        bot_token=config.bot.token,
-        admin_ids=config.bot.admins
+        providers.Callable(
+            _create_telegram_notifier,
+            bot_token=config.bot.token,
+            admin_ids=config.bot.admins
+        )
     )
     
     notification_service = providers.Singleton(
-        NotificationService,
-        telegram_notifier=telegram_notifier
+        providers.Callable(
+            _create_notification_service,
+            telegram_notifier=telegram_notifier
+        )
     )
     
     # Payment gateway
     payment_gateway_factory = providers.Singleton(
-        PaymentGatewayFactory,
-        settings=settings
+        providers.Callable(
+            _create_payment_gateway_factory,
+            settings=settings
+        )
     )
     
     # Analytics
     analytics_service = providers.Singleton(
-        AnalyticsService,
-        settings=settings
+        providers.Callable(
+            _create_analytics_service,
+            settings=settings
+        )
     )
     
     # Application Services
     user_service = providers.Factory(
-        UserApplicationService,
-        unit_of_work=unit_of_work,
-        event_bus=event_bus
+        providers.Callable(
+            _create_user_service,
+            unit_of_work=unit_of_work,
+            event_bus=event_bus
+        )
     )
     
     product_service = providers.Factory(
-        ProductApplicationService,
-        unit_of_work=unit_of_work,
-        event_bus=event_bus
+        providers.Callable(
+            _create_product_service,
+            unit_of_work=unit_of_work,
+            event_bus=event_bus
+        )
     )
     
     order_service = providers.Factory(
-        OrderApplicationService,
-        unit_of_work=unit_of_work,
-        event_bus=event_bus
+        providers.Callable(
+            _create_order_service,
+            unit_of_work=unit_of_work,
+            event_bus=event_bus
+        )
     )
     
     payment_service = providers.Factory(
-        PaymentApplicationService,
-        unit_of_work=unit_of_work,
-        gateway_factory=payment_gateway_factory,
-        event_bus=event_bus
+        providers.Callable(
+            _create_payment_service,
+            unit_of_work=unit_of_work,
+            gateway_factory=payment_gateway_factory,
+            event_bus=event_bus
+        )
     )
     
     referral_service = providers.Factory(
-        ReferralApplicationService,
-        unit_of_work=unit_of_work,
-        event_bus=event_bus
+        providers.Callable(
+            _create_referral_service,
+            unit_of_work=unit_of_work,
+            event_bus=event_bus
+        )
     )
     
     promocode_service = providers.Factory(
-        PromocodeApplicationService,
-        unit_of_work=unit_of_work,
-        event_bus=event_bus
+        providers.Callable(
+            _create_promocode_service,
+            unit_of_work=unit_of_work,
+            event_bus=event_bus
+        )
     )
     
     trial_service = providers.Factory(
-        TrialApplicationService,
-        unit_of_work=unit_of_work,
-        event_bus=event_bus
+        providers.Callable(
+            _create_trial_service,
+            unit_of_work=unit_of_work,
+            event_bus=event_bus
+        )
     )
     
     product_loader_service = providers.Factory(
-        ProductLoaderService,
-        unit_of_work=unit_of_work,
-        settings=settings
+        providers.Callable(
+            _create_product_loader_service,
+            unit_of_work=unit_of_work,
+            settings=settings
+        )
     )
 
 
@@ -206,9 +249,9 @@ class BackgroundTasksContainer(containers.DeclarativeContainer):
 container = ApplicationContainer()
 
 
-def setup_container(settings: Settings) -> ApplicationContainer:
+def setup_container(settings) -> ApplicationContainer:
     """Setup and configure the main container."""
-    container.config.from_pydantic(settings)
+    container.config.from_dict(settings.model_dump())
     return container
 
 
