@@ -210,14 +210,14 @@ class SqlAlchemyProductRepository(ProductRepository):
             version=entity.version,
             name=entity.name,
             description=entity.description,
-            category=entity.category.value,
+            category=entity.category.value if hasattr(entity.category, 'value') else str(entity.category),
             price_amount=entity.price.amount,
             price_currency=entity.price.currency,
             duration_days=entity.duration_days,
-            delivery_type=entity.delivery_type.value,
+            delivery_type=entity.delivery_type.value if hasattr(entity.delivery_type, 'value') else str(entity.delivery_type),
             delivery_template=entity.delivery_template,
             key_format=entity.key_format,
             stock=entity.stock,
-            status=entity.status.value,
+            status=entity.status.value if hasattr(entity.status, 'value') else str(entity.status),
             metadata=entity.metadata
         )
