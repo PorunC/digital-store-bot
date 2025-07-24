@@ -1,0 +1,1 @@
+"""Core configuration and containers for the application."""
