@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "digital-store-bot-v2"
-version = "2.0.0"
-description = "A decoupled digital store Telegram bot using Domain-Driven Design"
+version = "2.1.0"
+description = "A decoupled digital store Telegram bot using Domain-Driven Design with dependency-injector framework"
 authors = ["Claude <claude@anthropic.com>"]
 readme = "README.md"
 

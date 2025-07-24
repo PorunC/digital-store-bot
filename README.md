@@ -4,6 +4,7 @@
 
 [![Python](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://python.org)
 [![Poetry](https://img.shields.io/badge/Poetry-1.7+-green.svg)](https://python-poetry.org)
+[![Dependency Injector](https://img.shields.io/badge/dependency--injector-4.42+-orange.svg)](https://github.com/ets-labs/python-dependency-injector)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/Docker-Supported-blue.svg)](docker-compose.yml)
 
@@ -25,7 +26,7 @@
 | 核心模式 | 说明 | 优势 |
 |---------|------|------|
 | **领域驱动设计** | 清晰的业务边界和实体模型 | 业务逻辑清晰，维护性强 |
-| **依赖注入** | 自动依赖解析和生命周期管理 | 高度解耦，便于测试 |
+| **依赖注入** | dependency-injector 框架自动解析 | 高度解耦，便于测试 |
 | **事件驱动** | 异步事件总线通信 | 松耦合，高性能 |
 | **CQRS 模式** | 命令查询职责分离 | 读写分离，性能优化 |
 | **六边形架构** | 端口适配器模式 | 技术栈无关，易扩展 |
@@ -84,6 +85,57 @@ docker compose up -d
 docker compose logs -f bot
 ```
 
+## 🏗️ 依赖注入架构
+
+本项目使用 **dependency-injector** 框架实现企业级依赖注入：
+
+### 核心组件
+
+- **ApplicationContainer** (`src/core/containers.py`) - 主容器，管理所有服务生命周期
+- **Factory Functions** - 延迟初始化服务，避免循环依赖
+- **@inject 装饰器** - 自动注入依赖到函数和类构造器
+- **Provide 注解** - 显式声明依赖来源
+
+### 依赖注入特性
+
+```python
+from dependency_injector.wiring import inject, Provide
+from src.core.containers import ApplicationContainer
+
+# 自动依赖注入
+@inject
+async def my_handler(
+    user_service: UserApplicationService = Provide[ApplicationContainer.user_service],
+    order_service: OrderApplicationService = Provide[ApplicationContainer.order_service]
+):
+    # 服务自动注入，无需手动创建
+    user = await user_service.get_user_by_id("123")
+    order = await order_service.create_order(...)
+```
+
+### 容器配置
+
+容器采用工厂函数模式确保正确的初始化顺序：
+
+```python
+# src/core/containers.py
+class ApplicationContainer(containers.DeclarativeContainer):
+    # 基础设施服务
+    database_manager = providers.Singleton(...)
+    unit_of_work = providers.Factory(...)
+    
+    # 应用服务
+    user_service = providers.Factory(
+        providers.Callable(
+            _create_user_service,
+            unit_of_work=unit_of_work
+        )
+    )
+```
+
+> **重构说明**: 项目已从自定义 DI 框架成功迁移到 dependency-injector，
+> 提供了更好的类型安全、性能和维护性。
+
 ## 📁 项目结构
 
 ```
@@ -108,10 +160,11 @@ src/
 │   ├── telegram/             # Telegram 机器人界面
 │   ├── web/                  # Web 管理面板
 │   └── webhooks/             # 支付回调处理
-└── shared/                   # 🔄 共享组件
-    ├── dependency_injection/ # DI 容器
-    ├── events/               # 事件总线
-    └── exceptions/           # 异常处理
+├── shared/                   # 🔄 共享组件
+│   ├── events/               # 事件总线
+│   └── exceptions/           # 异常处理
+└── core/                     # 🏗️ 核心组件
+    └── containers.py         # dependency-injector 容器配置
 ```
 
 ## 🛠️ 开发指南
@@ -144,7 +197,7 @@ poetry run python -m src.infrastructure.database.migrations.migration_manager up
 2. **定义应用服务** - 在 `src/application/` 中实现业务流程
 3. **实现基础设施** - 在 `src/infrastructure/` 中集成外部服务
 4. **添加用户界面** - 在 `src/presentation/` 中实现交互逻辑
-5. **注册依赖** - 在 `src/main.py` 中配置 DI 容器
+5. **注册依赖** - 在 `src/core/containers.py` 中配置 dependency-injector 容器
 
 ## 🔧 配置说明
 

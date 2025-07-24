@@ -27,6 +27,7 @@
 
 ### 🏗️ 架构设计
 - [迁移总结](architecture/MIGRATION_SUMMARY.md) - 从3xui-shop的迁移总结
+- [依赖注入重构](architecture/DEPENDENCY_INJECTOR_MIGRATION.md) - dependency-injector框架迁移文档
 - [系统架构](architecture/system-design.md) - 整体架构设计
 - [数据库设计](architecture/database-schema.md) - 数据库结构设计
 - [API设计](api/api-reference.md) - API接口文档
@@ -74,5 +75,5 @@
 
 ---
 
-📅 **文档更新时间**: 2024年7月  
-📖 **文档版本**: v2.0.0
+📅 **文档更新时间**: 2025年7月  
+📖 **文档版本**: v2.1.0 (dependency-injector重构版)

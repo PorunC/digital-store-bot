@@ -100,7 +100,7 @@ This is a **Domain-Driven Design (DDD)** implementation with **clean architectur
 ### Core Patterns
 
 - **Domain-Driven Design**: Clear business boundaries with entities, value objects, and domain services
-- **Dependency Injection**: Custom container with automatic resolution via `@inject` decorator
+- **Dependency Injection**: dependency-injector framework with `@inject` decorator and `Provide` annotations
 - **Event-Driven Architecture**: Domain events with async event bus for service communication
 - **CQRS**: Separate command and query handlers for clear responsibility separation
 - **Repository Pattern**: Data access abstraction with interface-based contracts
@@ -130,15 +130,16 @@ src/
 │   ├── telegram/             # Aiogram bot with handlers and middleware
 │   ├── web/                  # Admin panel
 │   └── webhooks/             # Payment callback processing
-└── shared/                   # Cross-cutting concerns
-    ├── dependency_injection/ # DI container and decorators
-    ├── events/               # Event bus and base event classes
-    └── exceptions/           # Custom exception types
+├── shared/                   # Cross-cutting concerns
+│   ├── events/               # Event bus and base event classes
+│   └── exceptions/           # Custom exception types
+└── core/                     # Core infrastructure
+    └── containers.py         # dependency-injector container configuration
 ```
 
 ### Key Components
 
-- **DI Container** (`src/shared/dependency_injection/container.py`): Type-based dependency resolution with singleton/factory patterns
+- **DI Container** (`src/core/containers.py`): dependency-injector ApplicationContainer with factory functions and lazy imports
 - **Event Bus** (`src/shared/events/bus.py`): Async in-memory event dispatcher for loose coupling
 - **Database Manager** (`src/infrastructure/database/manager.py`): Connection pooling and session management
 - **Configuration System** (`src/infrastructure/configuration/settings.py`): Pydantic-based settings with YAML/ENV support
@@ -168,18 +169,48 @@ Key configuration sections:
 
 ## 📡 Dependency Injection Usage
 
-The DI system enables constructor injection with automatic resolution:
+The system uses **dependency-injector** framework for enterprise-grade dependency management:
 
 ```python
-from src.shared.dependency_injection import container, inject
+from dependency_injector.wiring import inject, Provide
+from src.core.containers import ApplicationContainer
 
-# Register dependencies (done in main.py)
-container.register_singleton(UserRepository, SqlAlchemyUserRepository)
-
-# Automatic injection
+# Automatic injection with Provide annotations
 @inject
-async def my_handler(user_repo: UserRepository) -> None:
-    user = await user_repo.get_by_id("123")
+async def my_handler(
+    user_service: UserApplicationService = Provide[ApplicationContainer.user_service],
+    order_service: OrderApplicationService = Provide[ApplicationContainer.order_service]
+) -> None:
+    user = await user_service.get_user_by_id("123")
+    order = await order_service.create_order(...)
+
+# Class constructor injection
+@inject
+class MyService:
+    def __init__(
+        self,
+        user_service: UserApplicationService = Provide[ApplicationContainer.user_service]
+    ):
+        self.user_service = user_service
+```
+
+### Container Configuration
+
+Services are configured using factory functions to avoid circular imports:
+
+```python
+# src/core/containers.py
+def _create_user_service(unit_of_work):
+    from ..application.services.user_service import UserApplicationService
+    return UserApplicationService(unit_of_work)
+
+class ApplicationContainer(containers.DeclarativeContainer):
+    user_service = providers.Factory(
+        providers.Callable(
+            _create_user_service,
+            unit_of_work=unit_of_work
+        )
+    )
 ```
 
 ## 🎯 Event System Usage
@@ -210,7 +241,7 @@ class WelcomeMessageHandler:
 2. **Application Layer**: Add commands/queries and handlers in `src/application/`
 3. **Infrastructure**: Implement repositories and external service adapters
 4. **Presentation**: Add Telegram handlers or web endpoints
-5. **Register Dependencies**: Update DI container registrations in `main.py`
+5. **Register Dependencies**: Add factory functions and providers in `src/core/containers.py`
 
 ### Database Changes
 
