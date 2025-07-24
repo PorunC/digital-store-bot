@@ -354,7 +354,6 @@ async def show_orders(callback: CallbackQuery):
 
 
 @profile_router.callback_query(F.data == "referral:main")
-@inject
 async def show_referral_callback(
     callback: CallbackQuery,
     user: Optional[User]

@@ -71,7 +71,7 @@ class SqlAlchemyInviteRepository(InviteRepository):
         invite_model.expires_at = entity.expires_at
         invite_model.last_clicked_at = entity.last_clicked_at
         invite_model.deactivated_at = entity.deactivated_at
-        invite_model.metadata = entity.metadata
+        # Note: Invite entity doesn't have metadata field
         invite_model.version = entity.version
 
         await self.session.flush()
@@ -284,7 +284,7 @@ class SqlAlchemyInviteRepository(InviteRepository):
             expires_at=model.expires_at,
             last_clicked_at=model.last_clicked_at,
             deactivated_at=model.deactivated_at,
-            metadata=model.metadata or {}
+            # Note: Invite entity doesn't have metadata field
         )
 
         # Clear domain events as they come from persistence
@@ -309,5 +309,5 @@ class SqlAlchemyInviteRepository(InviteRepository):
             expires_at=entity.expires_at,
             last_clicked_at=entity.last_clicked_at,
             deactivated_at=entity.deactivated_at,
-            metadata=entity.metadata
+            # Note: Invite entity doesn't have metadata field
         )

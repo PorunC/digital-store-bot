@@ -71,7 +71,7 @@ class SqlAlchemyPromocodeRepository(PromocodeRepository):
         promocode_model.expires_at = entity.expires_at
         promocode_model.activated_at = entity.activated_at
         promocode_model.deactivated_at = entity.deactivated_at
-        promocode_model.metadata = entity.metadata
+        # Note: Promocode entity doesn't have metadata field
         promocode_model.version = entity.version
 
         await self.session.flush()
@@ -257,7 +257,7 @@ class SqlAlchemyPromocodeRepository(PromocodeRepository):
             expires_at=model.expires_at,
             activated_at=model.activated_at,
             deactivated_at=model.deactivated_at,
-            metadata=model.metadata or {}
+            # Note: Promocode entity doesn't have metadata field
         )
 
         # Clear domain events as they come from persistence
@@ -282,5 +282,5 @@ class SqlAlchemyPromocodeRepository(PromocodeRepository):
             expires_at=entity.expires_at,
             activated_at=entity.activated_at,
             deactivated_at=entity.deactivated_at,
-            metadata=entity.metadata
+            # Note: Promocode entity doesn't have metadata field
         )

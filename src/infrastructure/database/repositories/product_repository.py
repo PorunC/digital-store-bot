@@ -72,7 +72,7 @@ class SqlAlchemyProductRepository(ProductRepository):
         product_model.key_format = entity.key_format
         product_model.stock = entity.stock
         product_model.status = entity.status.value
-        product_model.metadata = entity.metadata
+        product_model.extra_data = entity.metadata
         product_model.version = entity.version
 
         await self.session.flush()
@@ -194,7 +194,7 @@ class SqlAlchemyProductRepository(ProductRepository):
             key_format=model.key_format,
             stock=model.stock,
             status=ProductStatus(model.status),
-            metadata=model.metadata or {}
+            metadata=model.extra_data or {}
         )
 
         # Clear domain events as they come from persistence
@@ -219,5 +219,5 @@ class SqlAlchemyProductRepository(ProductRepository):
             key_format=entity.key_format,
             stock=entity.stock,
             status=entity.status.value if hasattr(entity.status, 'value') else str(entity.status),
-            metadata=entity.metadata
+            extra_data=entity.metadata
         )

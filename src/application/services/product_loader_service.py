@@ -169,6 +169,7 @@ class ProductLoaderService:
             return existing_product
 
         # Create the product using domain entity
+        logger.debug(f"Creating product {product_id} with metadata type: {type(additional_metadata)} value: {additional_metadata}")
         product = Product.create(
             name=name,
             description=description,
