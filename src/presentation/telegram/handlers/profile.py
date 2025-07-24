@@ -309,7 +309,7 @@ async def copy_referral_link(callback: CallbackQuery):
 async def show_orders(callback: CallbackQuery):
     """Show user order history."""
     user_service: UserApplicationService = container.get(UserApplicationService)
-    order_service: OrderApplicationService = Provide[ApplicationContainer.order_service] = container.get(OrderApplicationService)
+    order_service: OrderApplicationService = container.get(OrderApplicationService)
     
     user = await user_service.get_user_by_telegram_id(callback.from_user.id)
     if not user:
