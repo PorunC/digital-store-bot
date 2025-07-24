@@ -163,7 +163,7 @@ async def refresh_profile(
         pass  # Ignore if message can't be deleted
 
     # Call show_profile_callback - services will be injected automatically
-    await show_profile_callback(callback, user, user_service, referral_service, order_service)
+    await show_profile_callback(callback, user)
 
 
 @profile_router.callback_query(F.data == "profile_language")
@@ -230,13 +230,7 @@ async def set_language(callback: CallbackQuery):
     )
     
     # Call refresh_profile handler directly which will handle dependency injection
-    await refresh_profile(
-        refresh_callback, 
-        user, 
-        container.get(UserApplicationService),
-        container.get(ReferralApplicationService), 
-        container.get(OrderApplicationService)
-    )
+    await refresh_profile(refresh_callback, user)
 
 
 @profile_router.callback_query(F.data == "profile_referrals")
