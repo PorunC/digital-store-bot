@@ -20,7 +20,7 @@ async def main() -> None:
     """Main entry point for task scheduler."""
     import sys
     from src.infrastructure.configuration import get_settings
-    from src.shared.dependency_injection import container
+    from src.core.containers import container
     
     # Setup logging
     logging.basicConfig(
@@ -37,11 +37,11 @@ async def main() -> None:
     from src.infrastructure.database import DatabaseManager
     
     # Register configuration
-    container.register_instance(type(settings), settings)
+    # Removed: container registration now in container definition, settings)
     
     # Register database manager
     db_manager = DatabaseManager(settings.database)
-    container.register_instance(DatabaseManager, db_manager)
+    # Removed: container registration now in container definition
     
     # Initialize database first
     await db_manager.initialize()
@@ -54,13 +54,13 @@ async def main() -> None:
     
     # Register UnitOfWork factory
     from src.domain.repositories.base import UnitOfWork
-    container.register_factory(UnitOfWork, create_unit_of_work)
+    # Removed: container registration now in container definition
     
     # Register payment gateway factory without bot (for background tasks)
     from src.infrastructure.external.payment_gateways.factory import PaymentGatewayFactory
     def create_payment_gateway_factory() -> PaymentGatewayFactory:
         return PaymentGatewayFactory(settings, bot=None)
-    container.register_factory(PaymentGatewayFactory, create_payment_gateway_factory)
+    # Removed: container registration now in container definition
     
     # Register application services as factories with dependencies
     from src.application.services import (
@@ -70,25 +70,25 @@ async def main() -> None:
     )
     
     def create_user_service() -> UserApplicationService:
-        uow = container.resolve(UnitOfWork)
+        uow = container.UnitOfWork()
         return UserApplicationService(uow)
     
     def create_order_service() -> OrderApplicationService:
-        uow = container.resolve(UnitOfWork)
+        uow = container.UnitOfWork()
         return OrderApplicationService(uow)
     
     def create_payment_service() -> PaymentApplicationService:
-        payment_gateway_factory = container.resolve(PaymentGatewayFactory)
-        uow = container.resolve(UnitOfWork)
+        payment_gateway_factory = container.payment_gateway_factory()
+        uow = container.UnitOfWork()
         return PaymentApplicationService(payment_gateway_factory, uow)
     
-    container.register_factory(UserApplicationService, create_user_service)
-    container.register_factory(OrderApplicationService, create_order_service)
-    container.register_factory(PaymentApplicationService, create_payment_service)
+    # Removed: container registration now in container definition
+    # Removed: container registration now in container definition
+    # Removed: container registration now in container definition
     
     # Register notification service
     from src.infrastructure.notifications.notification_service import NotificationService
-    container.register_singleton(NotificationService, NotificationService)
+    # Removed: container registration now in container definition
     
     # Database already initialized above
     

@@ -17,7 +17,7 @@ from src.presentation.web.admin_panel import create_admin_app
 async def setup_dependencies() -> None:
     """Setup dependency injection container for admin panel."""
     from src.infrastructure.configuration import get_settings
-    from src.shared.dependency_injection import container
+    from src.core.containers import container
     
     # Load configuration
     settings = get_settings()
@@ -26,11 +26,11 @@ async def setup_dependencies() -> None:
     from src.infrastructure.database import DatabaseManager
     
     # Register configuration
-    container.register_instance(type(settings), settings)
+    # Removed: container registration now in container definition, settings)
     
     # Register database manager
     db_manager = DatabaseManager(settings.database)
-    container.register_instance(DatabaseManager, db_manager)
+    # Removed: container registration now in container definition
     
     # Initialize database first
     await db_manager.initialize()
@@ -43,7 +43,7 @@ async def setup_dependencies() -> None:
     
     # Register UnitOfWork factory
     from src.domain.repositories.base import UnitOfWork
-    container.register_factory(UnitOfWork, create_unit_of_work)
+    # Removed: container registration now in container definition
     
     # Register application services as factories with dependencies
     from src.application.services import (
@@ -57,42 +57,42 @@ async def setup_dependencies() -> None:
     )
     
     def create_user_service() -> UserApplicationService:
-        uow = container.resolve(UnitOfWork)
+        uow = container.UnitOfWork()
         return UserApplicationService(uow)
     
     def create_product_service() -> ProductApplicationService:
-        uow = container.resolve(UnitOfWork)
+        uow = container.UnitOfWork()
         return ProductApplicationService(uow)
     
     def create_order_service() -> OrderApplicationService:
-        uow = container.resolve(UnitOfWork)
+        uow = container.UnitOfWork()
         return OrderApplicationService(uow)
     
     def create_payment_service() -> PaymentApplicationService:
         from src.infrastructure.external.payment_gateways.factory import PaymentGatewayFactory
         payment_gateway_factory = PaymentGatewayFactory(settings, bot=None)
-        uow = container.resolve(UnitOfWork)
+        uow = container.UnitOfWork()
         return PaymentApplicationService(payment_gateway_factory, uow)
     
     def create_referral_service() -> ReferralApplicationService:
-        uow = container.resolve(UnitOfWork)
+        uow = container.UnitOfWork()
         return ReferralApplicationService(uow)
     
     def create_promocode_service() -> PromocodeApplicationService:
-        uow = container.resolve(UnitOfWork)
+        uow = container.UnitOfWork()
         return PromocodeApplicationService(uow)
     
     def create_trial_service() -> TrialApplicationService:
-        uow = container.resolve(UnitOfWork)
+        uow = container.UnitOfWork()
         return TrialApplicationService(uow)
     
-    container.register_factory(UserApplicationService, create_user_service)
-    container.register_factory(ProductApplicationService, create_product_service)
-    container.register_factory(OrderApplicationService, create_order_service)
-    container.register_factory(PaymentApplicationService, create_payment_service)
-    container.register_factory(ReferralApplicationService, create_referral_service)
-    container.register_factory(PromocodeApplicationService, create_promocode_service)
-    container.register_factory(TrialApplicationService, create_trial_service)
+    # Removed: container registration now in container definition
+    # Removed: container registration now in container definition
+    # Removed: container registration now in container definition
+    # Removed: container registration now in container definition
+    # Removed: container registration now in container definition
+    # Removed: container registration now in container definition
+    # Removed: container registration now in container definition
     
     # Database already initialized above
 

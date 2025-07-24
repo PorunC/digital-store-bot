@@ -41,15 +41,16 @@ class ApplicationContainer(containers.DeclarativeContainer):
     # Configuration
     config = providers.Configuration()
     
-    # Settings
-    settings = providers.Singleton(
-        Settings
-    )
+    # Settings (will be injected)
+    settings = providers.Object(None)
     
     # Database
     database_manager = providers.Singleton(
         DatabaseManager,
-        settings=settings
+        config=providers.Callable(
+            lambda s: s.database,
+            s=settings
+        )
     )
     
     database_session_factory = providers.Resource(

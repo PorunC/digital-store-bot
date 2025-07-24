@@ -3,7 +3,7 @@
 import logging
 from typing import Dict, Any, Optional, List
 
-from src.shared.dependency_injection import container
+from src.core.containers import container
 
 logger = logging.getLogger(__name__)
 
@@ -230,7 +230,7 @@ class TelegramNotifier:
         """Send message to specific user."""
         try:
             # In a real implementation, you would use the bot instance
-            # bot = container.get(Bot)
+            # bot = container.Bot()
             # await bot.send_message(
             #     chat_id=telegram_id,
             #     text=message,

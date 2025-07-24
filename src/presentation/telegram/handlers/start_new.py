@@ -1,4 +1,4 @@
-"""Start command handler with referral support."""
+"""Start command handler with dependency-injector."""
 
 import logging
 from typing import Optional
@@ -6,11 +6,11 @@ from typing import Optional
 from aiogram import Router, F
 from aiogram.filters import CommandStart
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from dependency_injector.wiring import inject, Provide
 
 from src.domain.entities.user import User
 from src.application.services.user_service import UserApplicationService
 from src.infrastructure.configuration.settings import Settings
-from dependency_injector.wiring import inject, Provide
 from src.core.containers import ApplicationContainer
 
 logger = logging.getLogger(__name__)

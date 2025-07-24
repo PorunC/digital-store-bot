@@ -13,7 +13,7 @@ from src.infrastructure.notifications.notification_service import (
     NotificationService,
     NotificationChannel
 )
-from src.shared.dependency_injection import container
+from src.core.containers import container
 
 logger = logging.getLogger(__name__)
 
@@ -22,10 +22,10 @@ class PaymentTasks:
     """Background tasks for payment processing."""
     
     def __init__(self):
-        self.order_service: OrderApplicationService = container.get(OrderApplicationService)
-        self.payment_service: PaymentApplicationService = container.get(PaymentApplicationService)
-        self.user_service: UserApplicationService = container.get(UserApplicationService)
-        self.notification_service: NotificationService = container.get(NotificationService)
+        self.order_service: OrderApplicationService = container.order_service()
+        self.payment_service: PaymentApplicationService = container.payment_service()
+        self.user_service: UserApplicationService = container.user_service()
+        self.notification_service: NotificationService = container.notification_service()
     
     async def process_expired_orders(self) -> dict:
         """Process orders that have expired without payment."""
@@ -212,7 +212,7 @@ class PaymentTasks:
             from src.domain.entities.order import PaymentMethod
             from src.infrastructure.external.payment_gateways.factory import PaymentGatewayFactory
             
-            factory: PaymentGatewayFactory = container.get(PaymentGatewayFactory)
+            factory: PaymentGatewayFactory = container.payment_gateway_factory()
             
             for method in PaymentMethod:
                 try:

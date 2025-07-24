@@ -10,7 +10,7 @@ import logging
 from typing import Optional
 from datetime import datetime, timedelta
 
-from src.shared.dependency_injection import container
+from src.core.containers import container
 from src.application.services import (
     UserApplicationService,
     ProductApplicationService,
@@ -66,7 +66,7 @@ def system():
 def create(telegram_id: int, username: str, first_name: str, last_name: str, language: str):
     """Create a new user."""
     async def _create_user():
-        user_service: UserApplicationService = container.get(UserApplicationService)
+        user_service: UserApplicationService = container.user_service()
         
         try:
             user = await user_service.create_user(
@@ -93,7 +93,7 @@ def create(telegram_id: int, username: str, first_name: str, last_name: str, lan
 def info(user_id: str):
     """Get user information."""
     async def _get_user_info():
-        user_service: UserApplicationService = container.get(UserApplicationService)
+        user_service: UserApplicationService = container.user_service()
         
         try:
             user = await user_service.get_user_by_id(user_id)
@@ -131,7 +131,7 @@ def info(user_id: str):
 def block(user_id: str, reason: str, until: Optional[str]):
     """Block a user."""
     async def _block_user():
-        user_service: UserApplicationService = container.get(UserApplicationService)
+        user_service: UserApplicationService = container.user_service()
         
         try:
             blocked_until = None
@@ -156,7 +156,7 @@ def block(user_id: str, reason: str, until: Optional[str]):
 def unblock(user_id: str):
     """Unblock a user."""
     async def _unblock_user():
-        user_service: UserApplicationService = container.get(UserApplicationService)
+        user_service: UserApplicationService = container.user_service()
         
         try:
             await user_service.unblock_user(user_id)
@@ -173,7 +173,7 @@ def unblock(user_id: str):
 def list():
     """List all products."""
     async def _list_products():
-        product_service: ProductApplicationService = container.get(ProductApplicationService)
+        product_service: ProductApplicationService = container.product_service()
         
         try:
             products = await product_service.get_all_products()
@@ -204,7 +204,7 @@ def list():
 def update(product_id: str, stock: Optional[int], price: Optional[float], active: Optional[bool]):
     """Update product information."""
     async def _update_product():
-        product_service: ProductApplicationService = container.get(ProductApplicationService)
+        product_service: ProductApplicationService = container.product_service()
         
         try:
             updates = {}
@@ -238,7 +238,7 @@ def update(product_id: str, stock: Optional[int], price: Optional[float], active
 def list(status: Optional[str], limit: int):
     """List recent orders."""
     async def _list_orders():
-        order_service: OrderApplicationService = container.get(OrderApplicationService)
+        order_service: OrderApplicationService = container.order_service()
         
         try:
             if status:
@@ -277,7 +277,7 @@ def list(status: Optional[str], limit: int):
 def cancel(order_id: str):
     """Cancel an order."""
     async def _cancel_order():
-        order_service: OrderApplicationService = container.get(OrderApplicationService)
+        order_service: OrderApplicationService = container.order_service()
         
         try:
             await order_service.cancel_order(order_id, "Cancelled via CLI")
@@ -294,9 +294,9 @@ def cancel(order_id: str):
 def stats():
     """Show system statistics."""
     async def _show_stats():
-        user_service: UserApplicationService = container.get(UserApplicationService)
-        order_service: OrderApplicationService = container.get(OrderApplicationService)
-        product_service: ProductApplicationService = container.get(ProductApplicationService)
+        user_service: UserApplicationService = container.user_service()
+        order_service: OrderApplicationService = container.order_service()
+        product_service: ProductApplicationService = container.product_service()
         
         try:
             user_stats = await user_service.get_user_statistics()
@@ -383,7 +383,7 @@ def health():
             
             # Database connectivity
             try:
-                user_service: UserApplicationService = container.get(UserApplicationService)
+                user_service: UserApplicationService = container.user_service()
                 await user_service.get_user_statistics()
                 click.echo("✅ Database: Connected")
             except Exception as e:

@@ -10,8 +10,7 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKe
 from src.domain.entities.user import User
 from src.application.services.user_service import UserApplicationService
 from src.infrastructure.configuration.settings import Settings
-from dependency_injector.wiring import inject, Provide
-from src.core.containers import ApplicationContainer
+from src.shared.dependency_injection import inject
 
 logger = logging.getLogger(__name__)
 start_router = Router(name="start")
@@ -22,8 +21,8 @@ start_router = Router(name="start")
 async def start_command(
     message: Message,
     user: Optional[User],
-    user_service: UserApplicationService = Provide[ApplicationContainer.user_service],
-    settings: Settings = Provide[ApplicationContainer.settings]
+    user_service: UserApplicationService,
+    settings: Settings
 ) -> None:
     """Handle /start command with referral support."""
     try:
@@ -210,8 +209,8 @@ Would you like to start your free trial?
 async def handle_trial_callback(
     callback_query: CallbackQuery,
     user: Optional[User],
-    user_service: UserApplicationService = Provide[ApplicationContainer.user_service],
-    settings: Settings = Provide[ApplicationContainer.settings]
+    user_service: UserApplicationService,
+    settings: Settings
 ) -> None:
     """Handle trial-related callbacks."""
     try:
@@ -265,7 +264,7 @@ async def handle_trial_callback(
 async def start_main_callback(
     callback: CallbackQuery,
     user: Optional[User],
-    settings: Settings = Provide[ApplicationContainer.settings]
+    settings: Settings
 ) -> None:
     """Handle start:main callback (return to main menu)."""
     try:
@@ -299,7 +298,7 @@ async def start_main_callback(
 async def back_to_main(
     callback: CallbackQuery,
     user: Optional[User],
-    settings: Settings = Provide[ApplicationContainer.settings]
+    settings: Settings
 ) -> None:
     """Handle back to main menu callback."""
     try:

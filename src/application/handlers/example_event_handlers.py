@@ -317,9 +317,9 @@ class PaymentEventHandler:
 # In your dependency injection container or main application setup:
 
 def setup_event_handlers(container):
-    notification_service = container.get(NotificationService)
-    analytics_service = container.get(AnalyticsService)
-    event_bus = container.get(EventBus)
+    notification_service = container.notification_service()
+    analytics_service = container.AnalyticsService()
+    event_bus = container.EventBus()
     
     # Register user event handlers
     user_handler = UserEventHandler(notification_service, analytics_service)

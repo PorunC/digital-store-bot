@@ -1,4 +1,4 @@
-"""Main application entry point."""
+"""Main application entry point with dependency-injector."""
 
 import asyncio
 import logging
@@ -6,13 +6,11 @@ import logging.handlers
 import sys
 from pathlib import Path
 
-from src.infrastructure.configuration import get_settings
-from src.infrastructure.database import DatabaseManager
-from src.presentation.telegram import TelegramBot
-from src.shared.dependency_injection import container
-from src.shared.events import event_bus
-
-# No longer need repository imports - all services use UnitOfWork pattern
+from src.infrastructure.configuration.settings import get_settings
+from src.infrastructure.database.manager import DatabaseManager
+from src.presentation.telegram.bot import TelegramBot
+from src.core.containers import ApplicationContainer
+from src.shared.events.bus import EventBus
 
 
 async def setup_logging(settings) -> None:
@@ -43,111 +41,27 @@ async def setup_logging(settings) -> None:
             pass
 
 
-async def setup_dependencies() -> None:
+async def setup_container(settings) -> ApplicationContainer:
     """Setup dependency injection container."""
-    settings = get_settings()
+    container = ApplicationContainer()
     
-    # Register configuration
-    container.register_instance(type(settings), settings)
+    # Configure the container with settings
+    container.config.from_dict(settings.model_dump())
+    container.settings.override(settings)
     
-    # Register database manager
-    db_manager = DatabaseManager(settings.database)
-    container.register_instance(DatabaseManager, db_manager)
-    
-    # Initialize database first
+    # Initialize database
+    db_manager = container.database_manager()
     await db_manager.initialize()
     
-    # Get session factory for UnitOfWork usage
-    session_factory = db_manager.get_session_factory()
-    
-    # UnitOfWork factory - All services now use UnitOfWork pattern exclusively
-    def create_unit_of_work():
-        from src.domain.repositories.base import UnitOfWork
-        from src.infrastructure.database.unit_of_work import SqlAlchemyUnitOfWork
-        return SqlAlchemyUnitOfWork(db_manager.get_session_factory())
-    
-    # Register UnitOfWork factory
-    from src.domain.repositories.base import UnitOfWork
-    container.register_factory(UnitOfWork, create_unit_of_work)
-    
-    # Register application services as factories with dependencies
-    from src.application.services import (
-        UserApplicationService,
-        ProductApplicationService,
-        OrderApplicationService,
-        PaymentApplicationService,
-        ReferralApplicationService,
-        PromocodeApplicationService,
-        TrialApplicationService
-    )
-    
-    def create_user_service() -> UserApplicationService:
-        uow = container.resolve(UnitOfWork)
-        return UserApplicationService(uow)
-    
-    def create_product_service() -> ProductApplicationService:
-        uow = container.resolve(UnitOfWork)
-        return ProductApplicationService(uow)
-    
-    def create_order_service() -> OrderApplicationService:
-        uow = container.resolve(UnitOfWork)
-        return OrderApplicationService(uow)
-    
-    def create_payment_service() -> PaymentApplicationService:
-        payment_gateway_factory = container.resolve(PaymentGatewayFactory)
-        uow = container.resolve(UnitOfWork)
-        return PaymentApplicationService(payment_gateway_factory, uow)
-    
-    def create_referral_service() -> ReferralApplicationService:
-        uow = container.resolve(UnitOfWork)
-        return ReferralApplicationService(uow)
-    
-    def create_promocode_service() -> PromocodeApplicationService:
-        uow = container.resolve(UnitOfWork)
-        return PromocodeApplicationService(uow)
-    
-    def create_trial_service() -> TrialApplicationService:
-        uow = container.resolve(UnitOfWork)
-        return TrialApplicationService(uow)
-    
-    container.register_factory(UserApplicationService, create_user_service)
-    container.register_factory(ProductApplicationService, create_product_service)
-    container.register_factory(OrderApplicationService, create_order_service)
-    container.register_factory(PaymentApplicationService, create_payment_service)
-    container.register_factory(ReferralApplicationService, create_referral_service)
-    container.register_factory(PromocodeApplicationService, create_promocode_service)
-    container.register_factory(TrialApplicationService, create_trial_service)
-    
-    # Register payment gateway factory
-    from src.infrastructure.external.payment_gateways.factory import PaymentGatewayFactory
-    def create_payment_gateway_factory() -> PaymentGatewayFactory:
-        # Bot will be available in the container when needed
-        from aiogram import Bot
-        try:
-            bot = container.resolve(Bot)
-        except:
-            bot = None
-        return PaymentGatewayFactory(settings, bot)
-    container.register_factory(PaymentGatewayFactory, create_payment_gateway_factory)
-    
-    # Register notification service
-    from src.infrastructure.notifications.notification_service import NotificationService
-    container.register_singleton(NotificationService, NotificationService)
+    return container
 
 
-async def initialize_products() -> None:
+async def initialize_products(container: ApplicationContainer) -> None:
     """Initialize products from JSON configuration."""
     logger = logging.getLogger(__name__)
     try:
-        from src.application.services.product_loader_service import ProductLoaderService
-        from src.domain.repositories.base import UnitOfWork
-        
-        # Get dependencies
-        uow = container.resolve(UnitOfWork)
-        settings = container.resolve(type(get_settings()))
-        
-        # Create loader service
-        loader_service = ProductLoaderService(uow, settings)
+        # Get product loader service from container
+        loader_service = container.product_loader_service()
         
         # Load products
         loaded_count = await loader_service.load_products_from_json()
@@ -161,9 +75,33 @@ async def initialize_products() -> None:
         # Don't exit, let the app continue even if products fail to load
 
 
+async def run_migrations(container: ApplicationContainer) -> None:
+    """Run database migrations."""
+    logger = logging.getLogger(__name__)
+    
+    settings = container.settings()
+    
+    from src.infrastructure.database.migrations.migration_manager import MigrationManager
+    migration_manager = MigrationManager(
+        database_url=settings.database.get_url(),
+        migrations_path="src/infrastructure/database/migrations"
+    )
+    await migration_manager.initialize()
+    
+    # Apply pending migrations
+    migration_result = await migration_manager.apply_migrations()
+    if migration_result["errors"] > 0:
+        logger.error(f"Migration failed: {migration_result}")
+        sys.exit(1)
+    
+    logger.info(f"Migration completed: {migration_result['applied']} migrations applied")
+
+
 async def main() -> None:
     """Main application entry point."""
     logger = None
+    container = None
+    
     try:
         # Load settings
         settings = get_settings()
@@ -171,44 +109,33 @@ async def main() -> None:
         # Setup logging
         await setup_logging(settings)
         logger = logging.getLogger(__name__)
-        logger.info("Starting Digital Store Bot v2")
+        logger.info("Starting Digital Store Bot v2 with dependency-injector")
         
-        # Setup dependencies
-        await setup_dependencies()
+        # Setup container
+        container = await setup_container(settings)
         
         # Start event bus
+        event_bus = container.event_bus()
         await event_bus.start_processing()
         
-        # Initialize database
-        db_manager = container.resolve(DatabaseManager)
-        await db_manager.initialize()
-        
         # Run database migrations
-        from src.infrastructure.database.migrations.migration_manager import MigrationManager
-        migration_manager = MigrationManager(
-            database_url=settings.database.get_url(),
-            migrations_path="src/infrastructure/database/migrations"
-        )
-        await migration_manager.initialize()
-        
-        # Apply pending migrations
-        migration_result = await migration_manager.apply_migrations()
-        if migration_result["errors"] > 0:
-            logger.error(f"Migration failed: {migration_result}")
-            sys.exit(1)
-        
-        logger.info(f"Migration completed: {migration_result['applied']} migrations applied")
+        await run_migrations(container)
         
         # Initialize products from JSON
-        await initialize_products()
+        await initialize_products(container)
         
-        # Start Telegram bot and register bot instance in container
+        # Wire container to modules for @inject decorators
+        container.wire(modules=[
+            "src.presentation.telegram.handlers.start",
+            "src.presentation.telegram.handlers.catalog", 
+            "src.presentation.telegram.handlers.profile",
+            "src.presentation.telegram.handlers.payment",
+            "src.presentation.telegram.handlers.admin",
+            "src.presentation.telegram.handlers.support",
+        ])
+        
+        # Start Telegram bot
         telegram_bot = TelegramBot(settings)
-        
-        # Register the bot instance in the container for payment gateways
-        from aiogram import Bot
-        container.register_instance(Bot, telegram_bot.bot)
-        
         await telegram_bot.start()
         
     except KeyboardInterrupt:
@@ -224,7 +151,14 @@ async def main() -> None:
         sys.exit(1)
     finally:
         # Cleanup
-        await event_bus.stop_processing()
+        if container:
+            # Stop event bus
+            event_bus = container.event_bus()
+            await event_bus.stop_processing()
+            
+            # Unwire container
+            container.unwire()
+            
         if logger:
             logger.info("Application stopped")
         else:

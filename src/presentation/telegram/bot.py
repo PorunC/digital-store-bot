@@ -48,11 +48,11 @@ class TelegramBot:
             from src.presentation.telegram.middleware.localization import LocalizationMiddleware
             from src.presentation.telegram.middleware.throttling import ThrottlingMiddleware
             from src.presentation.telegram.middleware.logging_middleware import LoggingMiddleware
-            from src.shared.dependency_injection import container
+            from src.core.containers import container
             from src.infrastructure.database.manager import DatabaseManager
             
             # Get database manager from container
-            db_manager = container.resolve(DatabaseManager)
+            db_manager = container.database_manager()
             
             # Setup middleware in order (first added is outermost)
             self.dispatcher.message.middleware(LoggingMiddleware())

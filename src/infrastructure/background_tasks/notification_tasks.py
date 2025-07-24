@@ -12,7 +12,7 @@ from src.infrastructure.notifications.notification_service import (
     NotificationService,
     NotificationChannel
 )
-from src.shared.dependency_injection import container
+from src.core.containers import container
 
 logger = logging.getLogger(__name__)
 
@@ -21,9 +21,9 @@ class NotificationTasks:
     """Background tasks for notification processing."""
     
     def __init__(self):
-        self.user_service: UserApplicationService = container.get(UserApplicationService)
-        self.order_service: OrderApplicationService = container.get(OrderApplicationService)
-        self.notification_service: NotificationService = container.get(NotificationService)
+        self.user_service: UserApplicationService = container.user_service()
+        self.order_service: OrderApplicationService = container.order_service()
+        self.notification_service: NotificationService = container.notification_service()
     
     async def send_trial_expiry_reminders(self) -> dict:
         """Send reminders to users whose trials are expiring soon."""

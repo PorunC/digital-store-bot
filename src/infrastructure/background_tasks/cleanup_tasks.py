@@ -13,7 +13,7 @@ from src.infrastructure.notifications.notification_service import (
     NotificationService,
     NotificationChannel
 )
-from src.shared.dependency_injection import container
+from src.core.containers import container
 
 logger = logging.getLogger(__name__)
 
@@ -22,10 +22,10 @@ class CleanupTasks:
     """Background tasks for system cleanup operations."""
     
     def __init__(self):
-        self.order_service: OrderApplicationService = container.get(OrderApplicationService)
-        self.user_service: UserApplicationService = container.get(UserApplicationService)
-        self.promocode_service: PromocodeApplicationService = container.get(PromocodeApplicationService)
-        self.notification_service: NotificationService = container.get(NotificationService)
+        self.order_service: OrderApplicationService = container.order_service()
+        self.user_service: UserApplicationService = container.user_service()
+        self.promocode_service: PromocodeApplicationService = container.promocode_service()
+        self.notification_service: NotificationService = container.notification_service()
     
     async def cleanup_expired_orders(self) -> dict:
         """Clean up orders that have been expired for more than 30 days."""

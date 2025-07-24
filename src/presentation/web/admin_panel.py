@@ -22,7 +22,7 @@ from src.application.services import (
 )
 from src.infrastructure.background_tasks.task_scheduler import TaskScheduler
 from src.infrastructure.notifications.notification_service import NotificationService
-from src.shared.dependency_injection import container
+from src.core.containers import container
 
 # Security for admin panel
 security = HTTPBasic()
@@ -64,9 +64,9 @@ def create_admin_app() -> FastAPI:
         """Admin dashboard home page."""
         
         # Get services
-        user_service: UserApplicationService = container.get(UserApplicationService)
-        order_service: OrderApplicationService = container.get(OrderApplicationService)
-        trial_service: TrialApplicationService = container.get(TrialApplicationService)
+        user_service: UserApplicationService = container.user_service()
+        order_service: OrderApplicationService = container.order_service()
+        trial_service: TrialApplicationService = container.trial_service()
         
         # Get statistics
         user_stats = await user_service.get_user_statistics()
@@ -99,7 +99,7 @@ def create_admin_app() -> FastAPI:
     async def users_page(request: Request, admin: str = Depends(verify_admin)):
         """Users management page."""
         
-        user_service: UserApplicationService = container.get(UserApplicationService)
+        user_service: UserApplicationService = container.user_service()
         
         # Get user statistics
         stats = await user_service.get_user_statistics()
@@ -122,7 +122,7 @@ def create_admin_app() -> FastAPI:
     async def products_page(request: Request, admin: str = Depends(verify_admin)):
         """Products management page."""
         
-        product_service: ProductApplicationService = container.get(ProductApplicationService)
+        product_service: ProductApplicationService = container.product_service()
         
         # Get all products
         products = await product_service.get_all_products()
@@ -145,7 +145,7 @@ def create_admin_app() -> FastAPI:
     async def orders_page(request: Request, admin: str = Depends(verify_admin)):
         """Orders management page."""
         
-        order_service: OrderApplicationService = container.get(OrderApplicationService)
+        order_service: OrderApplicationService = container.order_service()
         
         # Get order statistics
         order_stats = await order_service.get_order_stats()
@@ -175,7 +175,7 @@ def create_admin_app() -> FastAPI:
     async def payments_page(request: Request, admin: str = Depends(verify_admin)):
         """Payments monitoring page."""
         
-        payment_service: PaymentApplicationService = container.get(PaymentApplicationService)
+        payment_service: PaymentApplicationService = container.payment_service()
         
         # Get payment statistics
         payment_stats = await payment_service.get_payment_statistics()
@@ -196,7 +196,7 @@ def create_admin_app() -> FastAPI:
     async def promocodes_page(request: Request, admin: str = Depends(verify_admin)):
         """Promocodes management page."""
         
-        promocode_service: PromocodeApplicationService = container.get(PromocodeApplicationService)
+        promocode_service: PromocodeApplicationService = container.promocode_service()
         
         # Get promocode data
         active_codes = await promocode_service.get_active_promocodes()
@@ -219,7 +219,7 @@ def create_admin_app() -> FastAPI:
         
         # Get system information
         try:
-            task_scheduler: TaskScheduler = container.get(TaskScheduler)
+            task_scheduler: TaskScheduler = container.TaskScheduler()
             scheduler_stats = task_scheduler.get_scheduler_stats()
             tasks_status = task_scheduler.get_all_tasks_status()
         except:
@@ -242,7 +242,7 @@ def create_admin_app() -> FastAPI:
     async def block_user_api(user_id: str, reason: str = Form(), admin: str = Depends(verify_admin)):
         """API endpoint to block a user."""
         
-        user_service: UserApplicationService = container.get(UserApplicationService)
+        user_service: UserApplicationService = container.user_service()
         
         try:
             await user_service.block_user(user_id, reason)
@@ -254,7 +254,7 @@ def create_admin_app() -> FastAPI:
     async def unblock_user_api(user_id: str, admin: str = Depends(verify_admin)):
         """API endpoint to unblock a user."""
         
-        user_service: UserApplicationService = container.get(UserApplicationService)
+        user_service: UserApplicationService = container.user_service()
         
         try:
             await user_service.unblock_user(user_id)
@@ -266,7 +266,7 @@ def create_admin_app() -> FastAPI:
     async def toggle_product_api(product_id: str, admin: str = Depends(verify_admin)):
         """API endpoint to activate/deactivate a product."""
         
-        product_service: ProductApplicationService = container.get(ProductApplicationService)
+        product_service: ProductApplicationService = container.product_service()
         
         try:
             product = await product_service.get_product_by_id(product_id)
@@ -289,7 +289,7 @@ def create_admin_app() -> FastAPI:
     async def cancel_order_api(order_id: str, reason: str = Form(), admin: str = Depends(verify_admin)):
         """API endpoint to cancel an order."""
         
-        order_service: OrderApplicationService = container.get(OrderApplicationService)
+        order_service: OrderApplicationService = container.order_service()
         
         try:
             await order_service.cancel_order(order_id, f"Cancelled by admin: {reason}")
@@ -302,7 +302,7 @@ def create_admin_app() -> FastAPI:
         """API endpoint to manually run a task."""
         
         try:
-            task_scheduler: TaskScheduler = container.get(TaskScheduler)
+            task_scheduler: TaskScheduler = container.TaskScheduler()
             success = await task_scheduler.run_task_now(task_name)
             
             if success:
@@ -316,8 +316,8 @@ def create_admin_app() -> FastAPI:
     async def stats_api(admin: str = Depends(verify_admin)):
         """API endpoint for dashboard statistics."""
         
-        user_service: UserApplicationService = container.get(UserApplicationService)
-        order_service: OrderApplicationService = container.get(OrderApplicationService)
+        user_service: UserApplicationService = container.user_service()
+        order_service: OrderApplicationService = container.order_service()
         
         try:
             stats = {

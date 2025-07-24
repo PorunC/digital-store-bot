@@ -8,7 +8,7 @@ from aiogram.types import TelegramObject, User as TelegramUser
 
 from src.application.services.user_service import UserApplicationService
 from src.domain.entities.user import User
-from src.shared.dependency_injection import container
+from src.core.containers import container
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ class UserContextMiddleware(BaseMiddleware):
         try:
             # Get user service from container
             if not self.user_service:
-                self.user_service = container.resolve(UserApplicationService)
+                self.user_service = container.user_service()
 
             # Extract Telegram user from event
             telegram_user = data.get("event_from_user")

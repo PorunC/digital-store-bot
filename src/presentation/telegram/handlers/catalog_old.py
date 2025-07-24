@@ -10,8 +10,7 @@ from src.domain.entities.user import User
 from src.domain.entities.product import Product, ProductCategory
 from src.application.services.product_service import ProductApplicationService
 from src.infrastructure.configuration.settings import Settings
-from dependency_injector.wiring import inject, Provide
-from src.core.containers import ApplicationContainer
+from src.shared.dependency_injection import inject
 
 logger = logging.getLogger(__name__)
 catalog_router = Router(name="catalog")
@@ -22,8 +21,8 @@ catalog_router = Router(name="catalog")
 async def show_catalog_alias(
     callback_query: CallbackQuery,
     user: Optional[User],
-    product_service: ProductApplicationService = Provide[ApplicationContainer.product_service],
-    settings: Settings = Provide[ApplicationContainer.settings]
+    product_service: ProductApplicationService,
+    settings: Settings
 ) -> None:
     """Show catalog (alias for catalog:main)."""
     await show_catalog_main(callback_query, user, product_service, settings)
@@ -34,8 +33,8 @@ async def show_catalog_alias(
 async def show_catalog_main(
     callback_query: CallbackQuery,
     user: Optional[User],
-    product_service: ProductApplicationService = Provide[ApplicationContainer.product_service],
-    settings: Settings = Provide[ApplicationContainer.settings]
+    product_service: ProductApplicationService,
+    settings: Settings
 ) -> None:
     """Show main catalog with categories."""
     try:
@@ -74,7 +73,7 @@ Browse our digital products by category:
 async def show_category_products(
     callback_query: CallbackQuery,
     user: Optional[User],
-    product_service: ProductApplicationService = Provide[ApplicationContainer.product_service]
+    product_service: ProductApplicationService
 ) -> None:
     """Show products in a specific category."""
     try:
@@ -115,7 +114,7 @@ async def show_category_products(
 async def show_product_details(
     callback_query: CallbackQuery,
     user: Optional[User],
-    product_service: ProductApplicationService = Provide[ApplicationContainer.product_service]
+    product_service: ProductApplicationService
 ) -> None:
     """Show detailed product information."""
     try:
@@ -154,7 +153,7 @@ async def show_product_details(
 async def initiate_purchase(
     callback_query: CallbackQuery,
     user: Optional[User],
-    product_service: ProductApplicationService = Provide[ApplicationContainer.product_service]
+    product_service: ProductApplicationService
 ) -> None:
     """Initiate product purchase."""
     try:

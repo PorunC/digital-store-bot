@@ -3,7 +3,7 @@
 from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.shared.dependency_injection import container
+from src.core.containers import container
 
 
 async def get_database_session() -> AsyncGenerator[AsyncSession, None]:

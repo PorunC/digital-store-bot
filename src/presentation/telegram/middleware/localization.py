@@ -9,7 +9,7 @@ from aiogram.types import Update
 from fluent.runtime import FluentLocalization, FluentResourceLoader
 
 from src.application.services import UserApplicationService
-from src.shared.dependency_injection import container
+from src.core.containers import container
 
 logger = logging.getLogger(__name__)
 
@@ -198,7 +198,7 @@ ticket-created = ✅ Support ticket created
         """Get user's preferred locale."""
         try:
             # Get user from database
-            user_service: UserApplicationService = container.get(UserApplicationService)
+            user_service: UserApplicationService = container.user_service()
             
             user_id = None
             telegram_locale = None
