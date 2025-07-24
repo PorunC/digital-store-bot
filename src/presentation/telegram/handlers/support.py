@@ -7,7 +7,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
 from src.application.services import UserApplicationService, OrderApplicationService
-from src.core.containers import container
+from dependency_injector.wiring import inject, Provide
+from src.core.containers import ApplicationContainer
 
 support_router = Router()
 
@@ -165,9 +166,13 @@ async def contact_support_callback(callback: CallbackQuery):
 
 
 @support_router.callback_query(F.data == "send_support_message")
-async def send_support_message(callback: CallbackQuery, state: FSMContext):
+@inject
+async def send_support_message(
+    callback: CallbackQuery,
+    state: FSMContext,
+    user_service: UserApplicationService = Provide[ApplicationContainer.user_service]
+):
     """Start support message flow."""
-    user_service: UserApplicationService = container.get(UserApplicationService)
     
     user = await user_service.get_user_by_telegram_id(callback.from_user.id)
     if not user:
@@ -193,9 +198,13 @@ async def send_support_message(callback: CallbackQuery, state: FSMContext):
 
 
 @support_router.message(SupportStates.waiting_for_support_message)
-async def process_support_message(message: Message, state: FSMContext):
+@inject
+async def process_support_message(
+    message: Message,
+    state: FSMContext,
+    user_service: UserApplicationService = Provide[ApplicationContainer.user_service]
+):
     """Process support message."""
-    user_service: UserApplicationService = container.get(UserApplicationService)
     
     user = await user_service.get_user_by_telegram_id(message.from_user.id)
     if not user:
@@ -261,10 +270,14 @@ async def check_order_status(callback: CallbackQuery, state: FSMContext):
 
 
 @support_router.message(SupportStates.waiting_for_order_id)
-async def process_order_id(message: Message, state: FSMContext):
+@inject
+async def process_order_id(
+    message: Message,
+    state: FSMContext,
+    order_service: OrderApplicationService = Provide[ApplicationContainer.order_service],
+    user_service: UserApplicationService = Provide[ApplicationContainer.user_service]
+):
     """Process order ID for status check."""
-    order_service: OrderApplicationService = container.get(OrderApplicationService)
-    
     order_id = message.text.strip()
     
     try:
@@ -285,7 +298,6 @@ async def process_order_id(message: Message, state: FSMContext):
             return
 
         # Check if order belongs to this user
-        user_service: UserApplicationService = container.get(UserApplicationService)
         user = await user_service.get_user_by_telegram_id(message.from_user.id)
         
         if not user or str(order.user_id) != str(user.id):

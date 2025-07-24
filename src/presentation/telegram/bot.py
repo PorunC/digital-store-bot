@@ -76,25 +76,27 @@ class TelegramBot:
             
             # Localization middleware with settings
             self.dispatcher.message.middleware(LocalizationMiddleware(
+                self.container,
                 locales_path=self.settings.i18n.locales_dir,
                 default_locale=self.settings.i18n.default_locale
             ))
             self.dispatcher.callback_query.middleware(LocalizationMiddleware(
+                self.container,
                 locales_path=self.settings.i18n.locales_dir,
                 default_locale=self.settings.i18n.default_locale
             ))
             
             # User context middleware
-            self.dispatcher.message.middleware(UserContextMiddleware())
-            self.dispatcher.callback_query.middleware(UserContextMiddleware())
+            self.dispatcher.message.middleware(UserContextMiddleware(self.container))
+            self.dispatcher.callback_query.middleware(UserContextMiddleware(self.container))
             
         except Exception as e:
             logger.warning(f"Some middleware could not be loaded: {e}")
             # Setup minimal middleware for basic functionality
             try:
                 from src.presentation.telegram.middleware.user_context import UserContextMiddleware
-                self.dispatcher.message.middleware(UserContextMiddleware())
-                self.dispatcher.callback_query.middleware(UserContextMiddleware())
+                self.dispatcher.message.middleware(UserContextMiddleware(self.container))
+                self.dispatcher.callback_query.middleware(UserContextMiddleware(self.container))
             except Exception as fallback_error:
                 logger.error(f"Critical middleware missing - bot may not function properly: {fallback_error}")
 

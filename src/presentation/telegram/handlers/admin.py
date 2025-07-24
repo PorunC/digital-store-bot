@@ -24,6 +24,8 @@ from src.domain.entities.promocode import PromocodeType
 from src.domain.entities.user import SubscriptionType
 from src.domain.value_objects.product_info import DeliveryType
 from src.core.containers import container
+from dependency_injector.wiring import inject, Provide
+from src.core.containers import ApplicationContainer
 
 admin_router = Router()
 
@@ -119,16 +121,18 @@ async def refresh_admin_panel(callback: CallbackQuery):
 
 
 @admin_router.callback_query(F.data == "admin_stats")
-async def show_statistics(callback: CallbackQuery):
+@inject
+async def show_statistics(
+    callback: CallbackQuery,
+    user_service: UserApplicationService = Provide[ApplicationContainer.user_service],
+    order_service: OrderApplicationService = Provide[ApplicationContainer.order_service],
+    trial_service: TrialApplicationService = Provide[ApplicationContainer.trial_service],
+    payment_service: PaymentApplicationService = Provide[ApplicationContainer.payment_service]
+):
     """Show system statistics."""
     if not is_admin(callback.from_user.id):
         await callback.answer("❌ Access denied", show_alert=True)
         return
-
-    user_service: UserApplicationService = container.get(UserApplicationService)
-    order_service: OrderApplicationService = container.get(OrderApplicationService)
-    trial_service: TrialApplicationService = container.get(TrialApplicationService)
-    payment_service: PaymentApplicationService = container.get(PaymentApplicationService)
 
     # Get statistics
     user_stats = await user_service.get_user_statistics()
@@ -198,13 +202,15 @@ async def manage_users(callback: CallbackQuery):
 
 
 @admin_router.callback_query(F.data == "admin_products")
-async def manage_products(callback: CallbackQuery):
+@inject
+async def manage_products(
+    callback: CallbackQuery,
+    product_service: ProductApplicationService = Provide[ApplicationContainer.product_service]
+):
     """Manage products."""
     if not is_admin(callback.from_user.id):
         await callback.answer("❌ Access denied", show_alert=True)
         return
-
-    product_service: ProductApplicationService = container.get(ProductApplicationService)
     products = await product_service.get_all_products()
 
     products_text = f"📦 **Product Management** ({len(products)} products)\n\n"
@@ -306,14 +312,18 @@ async def add_product_price(message: Message, state: FSMContext):
 
 
 @admin_router.message(AdminStates.waiting_for_product_duration)
-async def add_product_duration(message: Message, state: FSMContext):
+@inject
+async def add_product_duration(
+    message: Message,
+    state: FSMContext,
+    product_service: ProductApplicationService = Provide[ApplicationContainer.product_service]
+):
     """Set product duration and create product."""
     if not is_admin(message.from_user.id):
         return
 
     try:
         duration = int(message.text)
-        product_service: ProductApplicationService = container.get(ProductApplicationService)
         
         data = await state.get_data()
         
@@ -351,13 +361,15 @@ async def add_product_duration(message: Message, state: FSMContext):
 
 
 @admin_router.callback_query(F.data == "admin_promocodes")
-async def manage_promocodes(callback: CallbackQuery):
+@inject
+async def manage_promocodes(
+    callback: CallbackQuery,
+    promocode_service: PromocodeApplicationService = Provide[ApplicationContainer.promocode_service]
+):
     """Manage promocodes."""
     if not is_admin(callback.from_user.id):
         await callback.answer("❌ Access denied", show_alert=True)
         return
-
-    promocode_service: PromocodeApplicationService = container.get(PromocodeApplicationService)
     
     active_codes = await promocode_service.get_active_promocodes()
     stats = await promocode_service.get_promocode_statistics()
@@ -483,9 +495,14 @@ async def set_promocode_duration(message: Message, state: FSMContext):
         await message.answer("❌ Invalid duration. Please enter a number.")
 
 
-async def create_promocode_final(message: Message, state: FSMContext, duration: int):
+@inject
+async def create_promocode_final(
+    message: Message,
+    state: FSMContext,
+    duration: int,
+    promocode_service: PromocodeApplicationService = Provide[ApplicationContainer.promocode_service]
+):
     """Create the promocode."""
-    promocode_service: PromocodeApplicationService = container.get(PromocodeApplicationService)
     
     try:
         data = await state.get_data()
@@ -573,12 +590,15 @@ async def start_broadcast(callback: CallbackQuery, state: FSMContext):
 
 
 @admin_router.message(AdminStates.waiting_for_broadcast_message)
-async def send_broadcast(message: Message, state: FSMContext):
+@inject
+async def send_broadcast(
+    message: Message,
+    state: FSMContext,
+    user_service: UserApplicationService = Provide[ApplicationContainer.user_service]
+):
     """Send broadcast message."""
     if not is_admin(message.from_user.id):
         return
-
-    user_service: UserApplicationService = container.get(UserApplicationService)
     
     try:
         data = await state.get_data()
@@ -648,7 +668,7 @@ async def reload_products(callback: CallbackQuery):
         from src.infrastructure.configuration import get_settings
         
         # Get dependencies
-        uow = container.resolve(UnitOfWork)
+        uow = container.unit_of_work()
         settings = get_settings()
         
         # Create loader service

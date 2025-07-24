@@ -16,7 +16,6 @@ from src.application.services import (
     TrialApplicationService
 )
 from src.domain.entities.user import User, SubscriptionType
-from src.core.containers import container
 from dependency_injector.wiring import inject, Provide
 from src.core.containers import ApplicationContainer
 
@@ -195,9 +194,12 @@ async def change_language(callback: CallbackQuery, state: FSMContext):
 
 
 @profile_router.callback_query(F.data.startswith("set_lang_"))
-async def set_language(callback: CallbackQuery):
+@inject
+async def set_language(
+    callback: CallbackQuery,
+    user_service: UserApplicationService = Provide[ApplicationContainer.user_service]
+):
     """Set user language."""
-    user_service: UserApplicationService = container.get(UserApplicationService)
     
     language_code = callback.data.replace("set_lang_", "")
     user = await user_service.get_user_by_telegram_id(callback.from_user.id)
@@ -236,10 +238,13 @@ async def set_language(callback: CallbackQuery):
 
 
 @profile_router.callback_query(F.data == "profile_referrals")
-async def show_referrals(callback: CallbackQuery):
+@inject
+async def show_referrals(
+    callback: CallbackQuery,
+    user_service: UserApplicationService = Provide[ApplicationContainer.user_service],
+    referral_service: ReferralApplicationService = Provide[ApplicationContainer.referral_service]
+):
     """Show user referrals."""
-    user_service: UserApplicationService = container.get(UserApplicationService)
-    referral_service: ReferralApplicationService = container.get(ReferralApplicationService)
     
     user = await user_service.get_user_by_telegram_id(callback.from_user.id)
     if not user:
@@ -287,9 +292,12 @@ async def show_referrals(callback: CallbackQuery):
 
 
 @profile_router.callback_query(F.data == "copy_referral_link")
-async def copy_referral_link(callback: CallbackQuery):
+@inject
+async def copy_referral_link(
+    callback: CallbackQuery,
+    user_service: UserApplicationService = Provide[ApplicationContainer.user_service]
+):
     """Copy referral link."""
-    user_service: UserApplicationService = container.get(UserApplicationService)
     
     user = await user_service.get_user_by_telegram_id(callback.from_user.id)
     if not user:
@@ -306,10 +314,13 @@ async def copy_referral_link(callback: CallbackQuery):
 
 
 @profile_router.callback_query(F.data == "profile_orders")
-async def show_orders(callback: CallbackQuery):
+@inject
+async def show_orders(
+    callback: CallbackQuery,
+    user_service: UserApplicationService = Provide[ApplicationContainer.user_service],
+    order_service: OrderApplicationService = Provide[ApplicationContainer.order_service]
+):
     """Show user order history."""
-    user_service: UserApplicationService = container.get(UserApplicationService)
-    order_service: OrderApplicationService = container.get(OrderApplicationService)
     
     user = await user_service.get_user_by_telegram_id(callback.from_user.id)
     if not user:
@@ -393,9 +404,12 @@ async def show_referral_callback(
 
 
 @profile_router.message(Command("referral"))
-async def referral_info(message: Message):
+@inject
+async def referral_info(
+    message: Message,
+    user_service: UserApplicationService = Provide[ApplicationContainer.user_service]
+):
     """Show referral program information."""
-    user_service: UserApplicationService = container.get(UserApplicationService)
     
     user = await user_service.get_user_by_telegram_id(message.from_user.id)
     if not user:
@@ -430,10 +444,13 @@ async def referral_info(message: Message):
 
 
 @profile_router.message(Command("trial"))
-async def trial_info(message: Message):
+@inject
+async def trial_info(
+    message: Message,
+    user_service: UserApplicationService = Provide[ApplicationContainer.user_service],
+    trial_service: TrialApplicationService = Provide[ApplicationContainer.trial_service]
+):
     """Show trial information."""
-    user_service: UserApplicationService = container.get(UserApplicationService)
-    trial_service: TrialApplicationService = container.get(TrialApplicationService)
     
     user = await user_service.get_user_by_telegram_id(message.from_user.id)
     if not user:
@@ -492,10 +509,13 @@ async def trial_info(message: Message):
 
 
 @profile_router.callback_query(F.data == "start_trial")
-async def start_trial(callback: CallbackQuery):
+@inject
+async def start_trial(
+    callback: CallbackQuery,
+    trial_service: TrialApplicationService = Provide[ApplicationContainer.trial_service],
+    user_service: UserApplicationService = Provide[ApplicationContainer.user_service]
+):
     """Start user trial."""
-    trial_service: TrialApplicationService = container.get(TrialApplicationService)
-    user_service: UserApplicationService = container.get(UserApplicationService)
     
     user = await user_service.get_user_by_telegram_id(callback.from_user.id)
     if not user:

@@ -9,7 +9,7 @@ from aiogram.types import Update
 from fluent.runtime import FluentLocalization, FluentResourceLoader
 
 from src.application.services import UserApplicationService
-from src.core.containers import container
+from src.core.containers import ApplicationContainer
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,8 @@ class LocalizationMiddleware(BaseMiddleware):
     Middleware for handling multi-language localization.
     """
     
-    def __init__(self, locales_path: str = "locales", default_locale: str = "en"):
+    def __init__(self, container: ApplicationContainer, locales_path: str = "locales", default_locale: str = "en"):
+        self.container = container
         self.locales_path = Path(locales_path)
         self.default_locale = default_locale
         self.locales: Dict[str, FluentLocalization] = {}
@@ -198,7 +199,7 @@ ticket-created = ✅ Support ticket created
         """Get user's preferred locale."""
         try:
             # Get user from database
-            user_service: UserApplicationService = container.user_service()
+            user_service: UserApplicationService = self.container.user_service()
             
             user_id = None
             telegram_locale = None

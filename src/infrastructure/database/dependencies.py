@@ -3,18 +3,23 @@
 from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.containers import container
+from dependency_injector.wiring import inject, Provide
+from src.core.containers import ApplicationContainer
 
 
-async def get_database_session() -> AsyncGenerator[AsyncSession, None]:
+@inject
+async def get_database_session(
+    database_manager = Provide[ApplicationContainer.database_manager]
+) -> AsyncGenerator[AsyncSession, None]:
     """Get database session with proper lifecycle management."""
-    database_manager = container.get("DatabaseManager")
     
     async with database_manager.get_session() as session:
         yield session
 
 
-async def get_session_factory():
+@inject
+async def get_session_factory(
+    database_manager = Provide[ApplicationContainer.database_manager]
+):
     """Get session factory for manual session management."""
-    database_manager = container.get("DatabaseManager")
-    return database_manager.get_session_factory()
+    return database_manager.create_session_factory()

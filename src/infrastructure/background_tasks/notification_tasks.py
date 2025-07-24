@@ -12,7 +12,7 @@ from src.infrastructure.notifications.notification_service import (
     NotificationService,
     NotificationChannel
 )
-from src.core.containers import container
+from src.core.containers import ApplicationContainer
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 class NotificationTasks:
     """Background tasks for notification processing."""
     
-    def __init__(self):
+    def __init__(self, container: ApplicationContainer):
         self.user_service: UserApplicationService = container.user_service()
         self.order_service: OrderApplicationService = container.order_service()
         self.notification_service: NotificationService = container.notification_service()

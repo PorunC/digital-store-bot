@@ -13,7 +13,7 @@ from src.infrastructure.notifications.notification_service import (
     NotificationService,
     NotificationChannel
 )
-from src.core.containers import container
+from src.core.containers import ApplicationContainer
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 class CleanupTasks:
     """Background tasks for system cleanup operations."""
     
-    def __init__(self):
+    def __init__(self, container: ApplicationContainer):
         self.order_service: OrderApplicationService = container.order_service()
         self.user_service: UserApplicationService = container.user_service()
         self.promocode_service: PromocodeApplicationService = container.promocode_service()

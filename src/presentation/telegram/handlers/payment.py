@@ -19,7 +19,6 @@ from src.application.services import (
 )
 from src.domain.entities.order import PaymentMethod
 from src.domain.entities.user import User
-from src.core.containers import container
 from dependency_injector.wiring import inject, Provide
 from src.core.containers import ApplicationContainer
 
@@ -82,10 +81,13 @@ async def initiate_purchase(
 
 
 @payment_router.callback_query(F.data.startswith("pay_stars_"))
-async def pay_with_stars(callback: CallbackQuery):
+@inject
+async def pay_with_stars(
+    callback: CallbackQuery,
+    payment_service: PaymentApplicationService = Provide[ApplicationContainer.payment_service],
+    order_service: OrderApplicationService = Provide[ApplicationContainer.order_service]
+):
     """Process payment with Telegram Stars."""
-    payment_service: PaymentApplicationService = container.get(PaymentApplicationService)
-    order_service: OrderApplicationService = container.get(OrderApplicationService)
     
     order_id = callback.data.replace("pay_stars_", "")
     
@@ -139,10 +141,13 @@ async def pay_with_stars(callback: CallbackQuery):
 
 
 @payment_router.callback_query(F.data.startswith("pay_crypto_"))
-async def pay_with_crypto(callback: CallbackQuery):
+@inject
+async def pay_with_crypto(
+    callback: CallbackQuery,
+    payment_service: PaymentApplicationService = Provide[ApplicationContainer.payment_service],
+    order_service: OrderApplicationService = Provide[ApplicationContainer.order_service]
+):
     """Process payment with cryptocurrency."""
-    payment_service: PaymentApplicationService = container.get(PaymentApplicationService)
-    order_service: OrderApplicationService = container.get(OrderApplicationService)
     
     order_id = callback.data.replace("pay_crypto_", "")
     
@@ -204,10 +209,13 @@ async def use_promocode(callback: CallbackQuery):
 
 
 @payment_router.message(F.text.regexp(r'^[A-Z0-9]{3,20}$'))
-async def process_promocode(message: Message):
+@inject
+async def process_promocode(
+    message: Message,
+    promocode_service: PromocodeApplicationService = Provide[ApplicationContainer.promocode_service],
+    user_service: UserApplicationService = Provide[ApplicationContainer.user_service]
+):
     """Process promocode input."""
-    promocode_service: PromocodeApplicationService = container.get(PromocodeApplicationService)
-    user_service: UserApplicationService = container.get(UserApplicationService)
     
     code = message.text.upper()
     
@@ -245,9 +253,12 @@ async def process_promocode(message: Message):
 
 
 @payment_router.callback_query(F.data.startswith("check_payment_"))
-async def check_payment_status(callback: CallbackQuery):
+@inject
+async def check_payment_status(
+    callback: CallbackQuery,
+    payment_service: PaymentApplicationService = Provide[ApplicationContainer.payment_service]
+):
     """Check payment status."""
-    payment_service: PaymentApplicationService = container.get(PaymentApplicationService)
     
     order_id = callback.data.replace("check_payment_", "")
     
@@ -285,9 +296,12 @@ async def check_payment_status(callback: CallbackQuery):
 
 
 @payment_router.callback_query(F.data.startswith("cancel_order_"))
-async def cancel_order(callback: CallbackQuery):
+@inject
+async def cancel_order(
+    callback: CallbackQuery,
+    order_service: OrderApplicationService = Provide[ApplicationContainer.order_service]
+):
     """Cancel an order."""
-    order_service: OrderApplicationService = container.get(OrderApplicationService)
     
     order_id = callback.data.replace("cancel_order_", "")
     
@@ -312,9 +326,12 @@ async def cancel_order(callback: CallbackQuery):
 
 
 @payment_router.pre_checkout_query()
-async def process_pre_checkout(pre_checkout_query: PreCheckoutQuery):
+@inject
+async def process_pre_checkout(
+    pre_checkout_query: PreCheckoutQuery,
+    order_service: OrderApplicationService = Provide[ApplicationContainer.order_service]
+):
     """Process pre-checkout query for Telegram Stars."""
-    order_service: OrderApplicationService = container.get(OrderApplicationService)
     
     try:
         # Extract order ID from payload
@@ -347,9 +364,12 @@ async def process_pre_checkout(pre_checkout_query: PreCheckoutQuery):
 
 
 @payment_router.message(F.successful_payment)
-async def process_successful_payment(message: Message):
+@inject
+async def process_successful_payment(
+    message: Message,
+    order_service: OrderApplicationService = Provide[ApplicationContainer.order_service]
+):
     """Process successful payment."""
-    order_service: OrderApplicationService = container.get(OrderApplicationService)
     
     successful_payment: SuccessfulPayment = message.successful_payment
     
@@ -392,10 +412,13 @@ async def process_successful_payment(message: Message):
 
 
 @payment_router.message(Command("orders"))
-async def show_orders_command(message: Message):
+@inject
+async def show_orders_command(
+    message: Message,
+    user_service: UserApplicationService = Provide[ApplicationContainer.user_service],
+    order_service: OrderApplicationService = Provide[ApplicationContainer.order_service]
+):
     """Show user orders via command."""
-    user_service: UserApplicationService = container.get(UserApplicationService)
-    order_service: OrderApplicationService = container.get(OrderApplicationService)
     
     user = await user_service.get_user_by_telegram_id(message.from_user.id)
     if not user:
@@ -444,9 +467,14 @@ async def show_orders_command(message: Message):
 
 
 # Webhook handler for external payment processors
-async def handle_payment_webhook(payment_method: str, webhook_data: Dict[str, Any], signature: str = None):
+@inject
+async def handle_payment_webhook(
+    payment_method: str, 
+    webhook_data: Dict[str, Any], 
+    signature: str = None,
+    payment_service: PaymentApplicationService = Provide[ApplicationContainer.payment_service]
+):
     """Handle payment webhook from external processors."""
-    payment_service: PaymentApplicationService = container.get(PaymentApplicationService)
     
     try:
         if payment_method == "cryptomus":

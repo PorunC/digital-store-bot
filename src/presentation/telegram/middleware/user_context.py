@@ -8,7 +8,7 @@ from aiogram.types import TelegramObject, User as TelegramUser
 
 from src.application.services.user_service import UserApplicationService
 from src.domain.entities.user import User
-from src.core.containers import container
+from src.core.containers import ApplicationContainer
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +16,8 @@ logger = logging.getLogger(__name__)
 class UserContextMiddleware(BaseMiddleware):
     """Middleware to automatically manage user context."""
 
-    def __init__(self):
+    def __init__(self, container: ApplicationContainer):
+        self.container = container
         self.user_service: Optional[UserApplicationService] = None
 
     async def __call__(
@@ -29,7 +30,7 @@ class UserContextMiddleware(BaseMiddleware):
         try:
             # Get user service from container
             if not self.user_service:
-                self.user_service = container.user_service()
+                self.user_service = self.container.user_service()
 
             # Extract Telegram user from event
             telegram_user = data.get("event_from_user")
