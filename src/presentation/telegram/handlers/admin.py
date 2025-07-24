@@ -230,6 +230,9 @@ async def manage_products(callback: CallbackQuery):
             InlineKeyboardButton(text="📊 Low Stock", callback_data="admin_low_stock"),
             InlineKeyboardButton(text="❌ Inactive", callback_data="admin_inactive_products")
         ],
+        [
+            InlineKeyboardButton(text="🔄 Reload from JSON", callback_data="admin_reload_products")
+        ],
         [InlineKeyboardButton(text="🔙 Back", callback_data="admin_panel")]
     ])
 
@@ -624,6 +627,83 @@ async def send_broadcast(message: Message, state: FSMContext):
     except Exception as e:
         await message.answer(f"❌ Error sending broadcast: {str(e)}")
         await state.clear()
+
+
+@admin_router.callback_query(F.data == "admin_reload_products")
+async def reload_products(callback: CallbackQuery):
+    """Reload products from JSON configuration."""
+    if not is_admin(callback.from_user.id):
+        await callback.answer("❌ Access denied", show_alert=True)
+        return
+
+    await callback.message.edit_text(
+        "🔄 **Reloading Products from JSON**\n\n"
+        "Please wait...",
+        parse_mode="Markdown"
+    )
+
+    try:
+        from src.application.services.product_loader_service import ProductLoaderService
+        from src.domain.repositories.base import UnitOfWork
+        from src.infrastructure.configuration import get_settings
+        
+        # Get dependencies
+        uow = container.resolve(UnitOfWork)
+        settings = get_settings()
+        
+        # Create loader service
+        loader_service = ProductLoaderService(uow, settings)
+        
+        # Reload products (this will replace existing ones)
+        loaded_count = await loader_service.reload_products()
+        
+        if loaded_count > 0:
+            result_text = (
+                f"✅ **Products Reloaded Successfully!**\n\n"
+                f"🔄 Reloaded: {loaded_count} products\n"
+                f"📁 Source: data/products.json\n\n"
+                f"All products have been updated from the JSON configuration."
+            )
+        else:
+            result_text = (
+                f"⚠️ **No Products Loaded**\n\n"
+                f"This could mean:\n"
+                f"• JSON file not found\n"
+                f"• Invalid JSON format\n"
+                f"• No products in file\n"
+                f"• Permission issues\n\n"
+                f"Check the logs for details."
+            )
+            
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="📦 Back to Products", callback_data="admin_products")],
+            [InlineKeyboardButton(text="🔧 Admin Panel", callback_data="admin_panel")]
+        ])
+        
+        await callback.message.edit_text(
+            result_text,
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+        
+    except Exception as e:
+        error_text = (
+            f"❌ **Failed to Reload Products**\n\n"
+            f"Error: {str(e)}\n\n"
+            f"Check the application logs for more details."
+        )
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="📦 Back to Products", callback_data="admin_products")]
+        ])
+        
+        await callback.message.edit_text(
+            error_text,
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+    
+    await callback.answer()
 
 
 @admin_router.message(Command("stats"))
