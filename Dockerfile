@@ -66,7 +66,7 @@ WORKDIR /app
 COPY --chown=botuser:botuser src/ src/
 COPY --chown=botuser:botuser config/ config/
 COPY --chown=botuser:botuser data/ data/
-COPY --chown=botuser:botuser pytest.ini ./
+# pytest configuration is in pyproject.toml - no separate pytest.ini needed
 COPY --chown=botuser:botuser .env.example ./
 
 # Create necessary directories with proper permissions
