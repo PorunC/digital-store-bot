@@ -59,7 +59,9 @@ class ProductLoaderService:
                     await self._create_product_from_data(product_data, categories_data)
                     loaded_count += 1
                 except Exception as e:
+                    import traceback
                     logger.error(f"Failed to create product {product_data.get('id', 'unknown')}: {e}")
+                    logger.error(f"Traceback: {traceback.format_exc()}")
                     continue
 
             logger.info(f"Successfully loaded {loaded_count} products")
@@ -107,10 +109,13 @@ class ProductLoaderService:
         
         # Category
         category_id = product_data.get("category_id") or product_data.get("category")
-        if category_id not in category_map:
-            logger.warning(f"Unknown category {category_id} for product {product_id}")
-            category_id = "digital"  # fallback
-        category = ProductCategory(category_id)
+        
+        # Validate category exists in our enum
+        try:
+            category = ProductCategory(category_id)
+        except ValueError:
+            logger.warning(f"Unknown category {category_id} for product {product_id}, using digital as fallback")
+            category = ProductCategory.DIGITAL
         
         # Price
         price_amount = Decimal(str(product_data["price"]))
@@ -129,7 +134,8 @@ class ProductLoaderService:
             "license_key": DeliveryType.LICENSE_KEY,
             "account_info": DeliveryType.ACCOUNT_INFO,
             "download_link": DeliveryType.DOWNLOAD_LINK,
-            "api": DeliveryType.API
+            "api": DeliveryType.API,
+            "physical": DeliveryType.DIGITAL  # Map physical to digital for now
         }
         delivery_type = delivery_type_map.get(delivery_type_str, DeliveryType.DIGITAL)
         
