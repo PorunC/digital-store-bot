@@ -3,7 +3,7 @@
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import Field, validator
 
@@ -42,7 +42,7 @@ class Product(AggregateRoot):
     key_format: Optional[str] = None
     stock: int = Field(default=-1)  # -1 = unlimited
     status: ProductStatus = Field(default=ProductStatus.ACTIVE)
-    metadata: Dict[str, str] = Field(default_factory=dict)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
 
     @classmethod
     def create(
@@ -56,7 +56,7 @@ class Product(AggregateRoot):
         delivery_template: str,
         key_format: Optional[str] = None,
         stock: int = -1,
-        metadata: Optional[Dict[str, str]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> "Product":
         """Create a new product."""
         product = cls(

@@ -1,7 +1,7 @@
 """Product SQLAlchemy model."""
 
 from decimal import Decimal
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from sqlalchemy import Boolean, Integer, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
@@ -43,7 +43,7 @@ class ProductModel(Base):
     )
     
     # Additional data
-    extra_data: Mapped[Dict[str, str]] = mapped_column(
+    extra_data: Mapped[Dict[str, Any]] = mapped_column(
         JSONB,
         default=dict,
         nullable=False
