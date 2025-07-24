@@ -142,7 +142,7 @@ class ProductLoaderService:
         
         # Delivery template
         metadata = product_data.get("metadata", {})
-        delivery_template = metadata.get("delivery_template")
+        delivery_template = metadata.get("delivery_template") or product_data.get("delivery_template", "Your product has been activated successfully! Thank you for your purchase.")
         
         # Additional metadata
         features = metadata.get("features", [])
