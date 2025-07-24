@@ -135,6 +135,32 @@ async def setup_dependencies() -> None:
     container.register_singleton(NotificationService, NotificationService)
 
 
+async def initialize_products() -> None:
+    """Initialize products from JSON configuration."""
+    logger = logging.getLogger(__name__)
+    try:
+        from src.application.services.product_loader_service import ProductLoaderService
+        from src.domain.repositories.base import UnitOfWork
+        
+        # Get dependencies
+        uow = container.resolve(UnitOfWork)
+        settings = container.resolve(type(get_settings()))
+        
+        # Create loader service
+        loader_service = ProductLoaderService(uow, settings)
+        
+        # Load products
+        loaded_count = await loader_service.load_products_from_json()
+        if loaded_count > 0:
+            logger.info(f"Loaded {loaded_count} products from JSON")
+        else:
+            logger.info("No products loaded (may already exist or file not found)")
+            
+    except Exception as e:
+        logger.error(f"Failed to initialize products: {e}")
+        # Don't exit, let the app continue even if products fail to load
+
+
 async def main() -> None:
     """Main application entry point."""
     logger = None
@@ -172,6 +198,9 @@ async def main() -> None:
             sys.exit(1)
         
         logger.info(f"Migration completed: {migration_result['applied']} migrations applied")
+        
+        # Initialize products from JSON
+        await initialize_products()
         
         # Start Telegram bot and register bot instance in container
         telegram_bot = TelegramBot(settings)

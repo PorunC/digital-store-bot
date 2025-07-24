@@ -111,18 +111,62 @@ docker compose up admin -d
 
 ### 产品操作
 
-- **添加产品**: 在 JSON 文件中添加新产品
+- **添加产品**: 在 `data/products.json` 文件中添加新产品
 - **编辑产品**: 修改价格、描述等信息
 - **库存管理**: 调整产品库存数量
 - **上架/下架**: 控制产品显示状态
 
-### 热重载配置
+### 产品数据加载
 
-修改产品配置后无需重启：
+系统启动时会自动从 `data/products.json` 加载产品数据。管理员可以通过以下方式重新加载：
+
+#### 通过 Telegram 管理面板
+
+1. 发送 `/admin` 命令进入管理面板
+2. 点击 **📦 Products** 
+3. 点击 **🔄 Reload from JSON**
+4. 系统会从 JSON 文件重新加载所有产品
+
+#### 通过 Web 管理面板
 
 ```bash
-# 重新加载产品配置
+# 重新加载产品配置 (如果Web面板可用)
 curl -X POST http://localhost:8080/admin/reload-products
+```
+
+#### 产品 JSON 格式
+
+产品配置文件位于 `data/products.json`，示例结构：
+
+```json
+{
+  "categories": [
+    {
+      "id": "software",
+      "name": "Software Licenses",
+      "description": "Premium software licenses",
+      "emoji": "💻"
+    }
+  ],
+  "products": [
+    {
+      "id": "premium_1month",
+      "name": "Premium Access - 1 Month",
+      "description": "One month premium access",
+      "category_id": "software",
+      "price": 9.99,
+      "currency": "USD",
+      "duration_days": 30,
+      "is_active": true,
+      "stock": 1000,
+      "delivery_type": "automatic",
+      "metadata": {
+        "features": ["Feature 1", "Feature 2"],
+        "delivery_template": "Thank you for your purchase!"
+      }
+    }
+  ]
+}
 ```
 
 ## 💰 订单管理

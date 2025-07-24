@@ -81,7 +81,7 @@ cd digital-store-bot-v2
 ### 2. Copy Configuration Templates
 ```bash
 cp .env.example .env
-cp products.example.json data/products.json
+cp data/products.example.json data/products.json
 ```
 
 ### 3. Configure Environment
