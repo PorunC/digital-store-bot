@@ -37,8 +37,9 @@ class ProductLoaderService:
             # Check if products already exist
             if not force_reload:
                 existing_products = await self.product_service.get_all_products()
+                logger.info(f"Found {len(existing_products) if existing_products else 0} existing products")
                 if existing_products:
-                    logger.info(f"Found {len(existing_products)} existing products, skipping load")
+                    logger.info(f"Products already exist, skipping load")
                     return 0
 
             # Load JSON data
@@ -46,6 +47,8 @@ class ProductLoaderService:
             if not json_data:
                 logger.error("Failed to load product JSON data")
                 return 0
+            
+            logger.info(f"Loaded JSON data with keys: {list(json_data.keys())}")
 
             # Parse and create products
             products_data = json_data.get("products", [])
