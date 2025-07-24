@@ -9,12 +9,14 @@ from dependency_injector.wiring import Provide
 def _create_database_manager(settings):
     """Factory for DatabaseManager."""
     from ..infrastructure.database.manager import DatabaseManager
-    return DatabaseManager(settings.database)
+    db_manager = DatabaseManager(settings.database)
+    # Note: Database will be initialized by the application before container setup
+    return db_manager
 
 def _create_unit_of_work(db_manager):
     """Factory for UnitOfWork."""
-    from ..infrastructure.database.unit_of_work import UnitOfWork
-    return UnitOfWork(db_manager.get_session_factory())
+    from ..infrastructure.database.unit_of_work import SqlAlchemyUnitOfWork
+    return SqlAlchemyUnitOfWork(db_manager.get_session_factory())
 
 def _create_event_bus():
     """Factory for EventBus."""
@@ -26,10 +28,15 @@ def _create_telegram_notifier(bot_token, admin_ids):
     from ..infrastructure.notifications.telegram_notifier import TelegramNotifier
     return TelegramNotifier(bot_token, admin_ids)
 
-def _create_notification_service(telegram_notifier):
+def _create_notification_service(bot_token, admin_ids):
     """Factory for NotificationService."""
-    from ..infrastructure.notifications.notification_service import NotificationService
-    return NotificationService(telegram_notifier)
+    from ..infrastructure.notifications.notification_service import NotificationService, NotificationChannel
+    from ..infrastructure.notifications.telegram_notifier import TelegramNotifier
+    
+    # Create a notification service with properly initialized notifiers
+    service = NotificationService()
+    service.notifiers[NotificationChannel.TELEGRAM] = TelegramNotifier(bot_token, admin_ids)
+    return service
 
 def _create_payment_gateway_factory(settings):
     """Factory for PaymentGatewayFactory."""
@@ -41,40 +48,40 @@ def _create_analytics_service(settings):
     from ..infrastructure.external.analytics.analytics_service import AnalyticsService
     return AnalyticsService(settings)
 
-def _create_user_service(unit_of_work, event_bus):
+def _create_user_service(unit_of_work):
     """Factory for UserApplicationService."""
     from ..application.services.user_service import UserApplicationService
-    return UserApplicationService(unit_of_work, event_bus)
+    return UserApplicationService(unit_of_work)
 
-def _create_product_service(unit_of_work, event_bus):
+def _create_product_service(unit_of_work):
     """Factory for ProductApplicationService."""
     from ..application.services.product_service import ProductApplicationService
-    return ProductApplicationService(unit_of_work, event_bus)
+    return ProductApplicationService(unit_of_work)
 
-def _create_order_service(unit_of_work, event_bus):
+def _create_order_service(unit_of_work):
     """Factory for OrderApplicationService."""
     from ..application.services.order_service import OrderApplicationService
-    return OrderApplicationService(unit_of_work, event_bus)
+    return OrderApplicationService(unit_of_work)
 
-def _create_payment_service(unit_of_work, gateway_factory, event_bus):
+def _create_payment_service(gateway_factory, unit_of_work):
     """Factory for PaymentApplicationService."""
     from ..application.services.payment_service import PaymentApplicationService
-    return PaymentApplicationService(unit_of_work, gateway_factory, event_bus)
+    return PaymentApplicationService(gateway_factory, unit_of_work)
 
-def _create_referral_service(unit_of_work, event_bus):
+def _create_referral_service(unit_of_work):
     """Factory for ReferralApplicationService."""
     from ..application.services.referral_service import ReferralApplicationService
-    return ReferralApplicationService(unit_of_work, event_bus)
+    return ReferralApplicationService(unit_of_work)
 
-def _create_promocode_service(unit_of_work, event_bus):
+def _create_promocode_service(unit_of_work):
     """Factory for PromocodeApplicationService."""
     from ..application.services.promocode_service import PromocodeApplicationService
-    return PromocodeApplicationService(unit_of_work, event_bus)
+    return PromocodeApplicationService(unit_of_work)
 
-def _create_trial_service(unit_of_work, event_bus):
+def _create_trial_service(unit_of_work):
     """Factory for TrialApplicationService."""
     from ..application.services.trial_service import TrialApplicationService
-    return TrialApplicationService(unit_of_work, event_bus)
+    return TrialApplicationService(unit_of_work)
 
 def _create_product_loader_service(unit_of_work, settings):
     """Factory for ProductLoaderService."""
@@ -131,7 +138,8 @@ class ApplicationContainer(containers.DeclarativeContainer):
     notification_service = providers.Singleton(
         providers.Callable(
             _create_notification_service,
-            telegram_notifier=telegram_notifier
+            bot_token=config.bot.token,
+            admin_ids=config.bot.admins
         )
     )
     
@@ -155,57 +163,50 @@ class ApplicationContainer(containers.DeclarativeContainer):
     user_service = providers.Factory(
         providers.Callable(
             _create_user_service,
-            unit_of_work=unit_of_work,
-            event_bus=event_bus
+            unit_of_work=unit_of_work
         )
     )
     
     product_service = providers.Factory(
         providers.Callable(
             _create_product_service,
-            unit_of_work=unit_of_work,
-            event_bus=event_bus
+            unit_of_work=unit_of_work
         )
     )
     
     order_service = providers.Factory(
         providers.Callable(
             _create_order_service,
-            unit_of_work=unit_of_work,
-            event_bus=event_bus
+            unit_of_work=unit_of_work
         )
     )
     
     payment_service = providers.Factory(
         providers.Callable(
             _create_payment_service,
-            unit_of_work=unit_of_work,
             gateway_factory=payment_gateway_factory,
-            event_bus=event_bus
+            unit_of_work=unit_of_work
         )
     )
     
     referral_service = providers.Factory(
         providers.Callable(
             _create_referral_service,
-            unit_of_work=unit_of_work,
-            event_bus=event_bus
+            unit_of_work=unit_of_work
         )
     )
     
     promocode_service = providers.Factory(
         providers.Callable(
             _create_promocode_service,
-            unit_of_work=unit_of_work,
-            event_bus=event_bus
+            unit_of_work=unit_of_work
         )
     )
     
     trial_service = providers.Factory(
         providers.Callable(
             _create_trial_service,
-            unit_of_work=unit_of_work,
-            event_bus=event_bus
+            unit_of_work=unit_of_work
         )
     )
     
@@ -252,6 +253,16 @@ container = ApplicationContainer()
 def setup_container(settings) -> ApplicationContainer:
     """Setup and configure the main container."""
     container.config.from_dict(settings.model_dump())
+    container.settings.override(settings)
+    return container
+
+
+def setup_scheduler_container(settings, db_manager) -> ApplicationContainer:
+    """Setup and configure container for scheduler with pre-initialized database."""
+    container.config.from_dict(settings.model_dump())
+    container.settings.override(settings)
+    # Override the database manager with the already initialized one
+    container.database_manager.override(db_manager)
     return container
 
 

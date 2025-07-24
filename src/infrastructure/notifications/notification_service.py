@@ -40,10 +40,7 @@ class NotificationService:
     """Service for sending notifications across different channels."""
     
     def __init__(self):
-        self.notifiers = {
-            NotificationChannel.TELEGRAM: TelegramNotifier(),
-            NotificationChannel.EMAIL: EmailNotifier(),
-        }
+        self.notifiers = {}
         self.enabled_channels = [NotificationChannel.TELEGRAM]  # Configure as needed
     
     async def send_payment_success_notification(

@@ -31,8 +31,8 @@ payment_router = Router()
 async def initiate_purchase(
     callback: CallbackQuery,
     user: Optional[User],
-    product_service: ProductApplicationService,
-    order_service: OrderApplicationService
+    product_service: ProductApplicationService = Provide[ApplicationContainer.product_service],
+    order_service: OrderApplicationService = Provide[ApplicationContainer.order_service]
 ):
     """Initiate product purchase."""
     product_id = callback.data.replace("buy_product_", "")
@@ -474,9 +474,9 @@ async def handle_payment_webhook(payment_method: str, webhook_data: Dict[str, An
 async def handle_stars_payment(
     callback: CallbackQuery,
     user: Optional[User],
-    product_service: ProductApplicationService,
-    order_service: OrderApplicationService,
-    payment_service: PaymentApplicationService
+    product_service: ProductApplicationService = Provide[ApplicationContainer.product_service],
+    order_service: OrderApplicationService = Provide[ApplicationContainer.order_service],
+    payment_service: PaymentApplicationService = Provide[ApplicationContainer.payment_service]
 ):
     """Handle Telegram Stars payment."""
     try:
@@ -547,9 +547,9 @@ async def handle_stars_payment(
 async def handle_crypto_payment(
     callback: CallbackQuery,
     user: Optional[User],
-    product_service: ProductApplicationService,
-    order_service: OrderApplicationService,
-    payment_service: PaymentApplicationService
+    product_service: ProductApplicationService = Provide[ApplicationContainer.product_service],
+    order_service: OrderApplicationService = Provide[ApplicationContainer.order_service],
+    payment_service: PaymentApplicationService = Provide[ApplicationContainer.payment_service]
 ):
     """Handle cryptocurrency payment."""
     try:

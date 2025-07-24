@@ -13,7 +13,8 @@ from src.infrastructure.notifications.notification_service import (
     NotificationService,
     NotificationChannel
 )
-from src.core.containers import container
+from dependency_injector.wiring import inject, Provide
+from src.core.containers import ApplicationContainer
 
 logger = logging.getLogger(__name__)
 
@@ -21,11 +22,20 @@ logger = logging.getLogger(__name__)
 class PaymentTasks:
     """Background tasks for payment processing."""
     
-    def __init__(self):
-        self.order_service: OrderApplicationService = container.order_service()
-        self.payment_service: PaymentApplicationService = container.payment_service()
-        self.user_service: UserApplicationService = container.user_service()
-        self.notification_service: NotificationService = container.notification_service()
+    @inject
+    def __init__(
+        self,
+        order_service: OrderApplicationService = Provide[ApplicationContainer.order_service],
+        payment_service: PaymentApplicationService = Provide[ApplicationContainer.payment_service],
+        user_service: UserApplicationService = Provide[ApplicationContainer.user_service],
+        notification_service: NotificationService = Provide[ApplicationContainer.notification_service],
+        payment_gateway_factory = Provide[ApplicationContainer.payment_gateway_factory]
+    ):
+        self.order_service = order_service
+        self.payment_service = payment_service
+        self.user_service = user_service
+        self.notification_service = notification_service
+        self.payment_gateway_factory = payment_gateway_factory
     
     async def process_expired_orders(self) -> dict:
         """Process orders that have expired without payment."""
@@ -212,7 +222,7 @@ class PaymentTasks:
             from src.domain.entities.order import PaymentMethod
             from src.infrastructure.external.payment_gateways.factory import PaymentGatewayFactory
             
-            factory: PaymentGatewayFactory = container.payment_gateway_factory()
+            factory = self.payment_gateway_factory
             
             for method in PaymentMethod:
                 try:

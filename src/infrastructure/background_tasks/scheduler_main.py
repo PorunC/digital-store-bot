@@ -20,7 +20,7 @@ async def main() -> None:
     """Main entry point for task scheduler."""
     import sys
     from src.infrastructure.configuration import get_settings
-    from src.core.containers import container
+    from src.core.containers import setup_scheduler_container
     
     # Setup logging
     logging.basicConfig(
@@ -36,15 +36,19 @@ async def main() -> None:
     # Setup dependencies using UnitOfWork pattern only
     from src.infrastructure.database import DatabaseManager
     
-    # Register configuration
-    # Removed: container registration now in container definition, settings)
-    
     # Register database manager
     db_manager = DatabaseManager(settings.database)
-    # Removed: container registration now in container definition
     
     # Initialize database first
     await db_manager.initialize()
+    
+    # Configure container with settings after database is initialized
+    container = setup_scheduler_container(settings, db_manager)
+    
+    # Wire the container for dependency injection
+    container.wire(modules=[
+        "src.infrastructure.background_tasks.payment_tasks"
+    ])
     
     # UnitOfWork factory - All services now use UnitOfWork pattern exclusively
     def create_unit_of_work():

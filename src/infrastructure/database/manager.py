@@ -35,17 +35,21 @@ class DatabaseManager:
             # 优化的引擎配置
             engine_kwargs = {
                 "echo": self.config.echo,
-                "pool_size": max(self.config.pool_size, 5),  # 最小5个连接
-                "max_overflow": max(self.config.max_overflow, 10),  # 最大额外10个连接
-                "pool_timeout": 30,  # 连接池超时30秒
-                "pool_recycle": 3600,  # 连接回收时间1小时
-                "pool_pre_ping": True,  # 连接前ping检查
             }
             
             # 对于小型应用，使用NullPool避免连接池问题
-            if self.config.pool_size <= 1:
+            if self.config.pool_size <= 1 or "sqlite" in self.config.get_url():
                 engine_kwargs["poolclass"] = NullPool
-                logger.info("Using NullPool for single connection setup")
+                logger.info("Using NullPool for SQLite or single connection setup")
+            else:
+                # Only add pool parameters for non-SQLite databases
+                engine_kwargs.update({
+                    "pool_size": max(self.config.pool_size, 5),  # 最小5个连接
+                    "max_overflow": max(self.config.max_overflow, 10),  # 最大额外10个连接
+                    "pool_timeout": 30,  # 连接池超时30秒
+                    "pool_recycle": 3600,  # 连接回收时间1小时
+                    "pool_pre_ping": True,  # 连接前ping检查
+                })
             
             self._engine = create_async_engine(
                 self.config.get_url(),

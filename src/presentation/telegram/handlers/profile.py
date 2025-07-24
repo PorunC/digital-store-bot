@@ -32,9 +32,9 @@ class ProfileStates(StatesGroup):
 async def show_profile_callback(
     callback: CallbackQuery,
     user: Optional[User],
-    user_service: UserApplicationService,
-    referral_service: ReferralApplicationService,
-    order_service: OrderApplicationService
+    user_service: UserApplicationService = Provide[ApplicationContainer.user_service],
+    referral_service: ReferralApplicationService = Provide[ApplicationContainer.referral_service],
+    order_service: OrderApplicationService = Provide[ApplicationContainer.order_service]
 ):
     """Show user profile information via callback."""
     if not user:
@@ -91,9 +91,9 @@ async def show_profile_callback(
 async def show_profile(
     message: Message,
     user: Optional[User],
-    user_service: UserApplicationService,
-    referral_service: ReferralApplicationService,
-    order_service: OrderApplicationService
+    user_service: UserApplicationService = Provide[ApplicationContainer.user_service],
+    referral_service: ReferralApplicationService = Provide[ApplicationContainer.referral_service],
+    order_service: OrderApplicationService = Provide[ApplicationContainer.order_service]
 ):
     """Show user profile information."""
     if not user:
@@ -149,9 +149,9 @@ async def show_profile(
 async def refresh_profile(
     callback: CallbackQuery,
     user: Optional[User],
-    user_service: UserApplicationService,
-    referral_service: ReferralApplicationService,
-    order_service: OrderApplicationService
+    user_service: UserApplicationService = Provide[ApplicationContainer.user_service],
+    referral_service: ReferralApplicationService = Provide[ApplicationContainer.referral_service],
+    order_service: OrderApplicationService = Provide[ApplicationContainer.order_service]
 ):
     """Refresh profile information."""
     if not user:
@@ -309,7 +309,7 @@ async def copy_referral_link(callback: CallbackQuery):
 async def show_orders(callback: CallbackQuery):
     """Show user order history."""
     user_service: UserApplicationService = container.get(UserApplicationService)
-    order_service: OrderApplicationService = container.get(OrderApplicationService)
+    order_service: OrderApplicationService = Provide[ApplicationContainer.order_service] = container.get(OrderApplicationService)
     
     user = await user_service.get_user_by_telegram_id(callback.from_user.id)
     if not user:
