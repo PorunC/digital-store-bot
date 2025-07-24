@@ -106,12 +106,15 @@ run_migrations() {
         log_info "Running custom database migrations..."
         python -c "
 import asyncio
+import os
 from src.infrastructure.database.migrations.migration_manager import MigrationManager
 
 async def run_migrations():
     try:
-        manager = MigrationManager()
-        await manager.run_migrations()
+        database_url = os.getenv('DATABASE_URL', 'sqlite+aiosqlite:///data/digital_store.db')
+        manager = MigrationManager(database_url)
+        await manager.initialize()
+        await manager.apply_migrations()
         print('Database migrations completed successfully')
         return True
     except Exception as e:
@@ -204,7 +207,7 @@ EOF
 
 # Start the appropriate service
 start_service() {
-    local service_type="${1:-${SERVICE_TYPE:-bot}}"
+    local service_type="${SERVICE_TYPE:-bot}"
     
     log_info "Starting service: $service_type"
     
@@ -215,11 +218,13 @@ start_service() {
             ;;
         "admin")
             log_info "Starting Admin Panel..."
-            exec python -m src.presentation.web.admin_panel
+            export PYTHONPATH="/app:${PYTHONPATH}"
+            exec python src/presentation/web/admin_main.py
             ;;
         "scheduler")
             log_info "Starting Task Scheduler..."
-            exec python -m src.infrastructure.background_tasks.scheduler
+            export PYTHONPATH="/app:${PYTHONPATH}"
+            exec python src/infrastructure/background_tasks/scheduler_main.py
             ;;
         "worker")
             log_info "Starting Background Worker..."
@@ -265,8 +270,8 @@ main() {
     # Create default configs
     create_default_configs
     
-    # Start the service
-    start_service "$@"
+    # Start the service (use environment variable, ignore command line args)
+    start_service
 }
 
 # Handle signals gracefully

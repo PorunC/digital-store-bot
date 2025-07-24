@@ -15,22 +15,28 @@ class UserProfile(BaseModel):
         """Pydantic configuration."""
         frozen = True
 
-    @validator("first_name")
+    @validator("first_name", pre=True)
     def validate_first_name(cls, v):
         """Validate first name."""
         if not v or not v.strip():
             raise ValueError("First name cannot be empty")
-        return v.strip()
+        # Truncate if too long to prevent validation errors
+        v = v.strip()
+        if len(v) > 64:
+            v = v[:61] + "..."
+        return v
 
-    @validator("username")
+    @validator("username", pre=True)
     def validate_username(cls, v):
         """Validate username."""
         if v is not None:
             v = v.strip()
             if not v:
                 return None
-            if not v.isalnum() and "_" not in v:
-                raise ValueError("Username can only contain letters, numbers, and underscores")
+            # Truncate if too long to prevent validation errors
+            if len(v) > 32:
+                v = v[:29] + "..."
+            # Accept all valid Telegram usernames (letters, numbers, underscores)
         return v
 
     @property

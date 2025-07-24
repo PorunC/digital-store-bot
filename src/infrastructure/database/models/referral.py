@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, JSON
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -31,7 +31,26 @@ class ReferralModel(Base):
         unique=True  # Each user can only be referred once
     )
 
-    # Reward tracking
+    # Status tracking
+    status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False, index=True)
+
+    # Reward tracking flags
+    first_level_reward_granted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    second_level_reward_granted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+    # Activation tracking
+    activated_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True
+    )
+
+    # Purchase tracking
+    first_purchase_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True
+    )
+
+    # Legacy reward tracking (kept for compatibility)
     referred_rewarded_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True),
         nullable=True
@@ -48,16 +67,21 @@ class ReferralModel(Base):
     # Invite source tracking
     invite_source: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
+    # Additional tracking data (renamed from metadata to avoid SQLAlchemy conflict)
+    tracking_data: Mapped[Optional[dict]] = mapped_column("metadata", JSON, nullable=True)
+
     # Relationships
     referrer: Mapped["UserModel"] = relationship(
         "UserModel",
         back_populates="referrals_made",
-        foreign_keys=[referrer_id]
+        foreign_keys=[referrer_id],
+        lazy="select"
     )
     referred_user: Mapped["UserModel"] = relationship(
         "UserModel",
         back_populates="referral_received",
-        foreign_keys=[referred_user_id]
+        foreign_keys=[referred_user_id],
+        lazy="select"
     )
 
     def __repr__(self) -> str:

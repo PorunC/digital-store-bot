@@ -43,7 +43,7 @@ class ProductModel(Base):
     )
     
     # Additional data
-    metadata: Mapped[Dict[str, str]] = mapped_column(
+    extra_data: Mapped[Dict[str, str]] = mapped_column(
         JSONB,
         default=dict,
         nullable=False

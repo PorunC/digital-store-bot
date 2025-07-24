@@ -5,7 +5,7 @@ from typing import Optional
 
 from aiogram import Router, F
 from aiogram.filters import CommandStart
-from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 
 from src.domain.entities.user import User
 from src.application.services.user_service import UserApplicationService
@@ -20,12 +20,23 @@ start_router = Router(name="start")
 @inject
 async def start_command(
     message: Message,
-    user: User,
+    user: Optional[User],
     user_service: UserApplicationService,
     settings: Settings
 ) -> None:
     """Handle /start command with referral support."""
     try:
+        # Handle case when user context is not available (database error)
+        if user is None:
+            logger.warning("User context not available, showing basic welcome message")
+            await message.answer(
+                "🤖 <b>Welcome to Digital Store!</b>\n\n"
+                "⚠️ We're experiencing some technical issues. Please try again in a moment.",
+                reply_markup=_create_basic_keyboard(),
+                parse_mode="HTML"
+            )
+            return
+        
         # Welcome message
         welcome_text = _get_welcome_message(user, settings)
         
@@ -196,13 +207,22 @@ Would you like to start your free trial?
 @start_router.callback_query(F.data.startswith("trial:"))
 @inject
 async def handle_trial_callback(
-    callback_query,
-    user: User,
+    callback_query: CallbackQuery,
+    user: Optional[User],
     user_service: UserApplicationService,
     settings: Settings
 ) -> None:
     """Handle trial-related callbacks."""
     try:
+        # Handle case when user context is not available
+        if user is None:
+            await callback_query.message.edit_text(
+                "⚠️ We're experiencing some technical issues. Please try again in a moment.",
+                reply_markup=_create_basic_keyboard()
+            )
+            await callback_query.answer()
+            return
+            
         action = callback_query.data.split(":")
         
         if len(action) >= 2 and action[1] == "activate":
@@ -237,6 +257,74 @@ async def handle_trial_callback(
     except Exception as e:
         logger.error(f"Error handling trial callback: {e}")
         await callback_query.answer("❌ Error processing request")
+
+
+@start_router.callback_query(F.data == "start:main")
+@inject
+async def start_main_callback(
+    callback: CallbackQuery,
+    user: Optional[User],
+    settings: Settings
+) -> None:
+    """Handle start:main callback (return to main menu)."""
+    try:
+        # Handle case when user context is not available
+        if user is None:
+            await callback.message.edit_text(
+                "⚠️ We're experiencing some technical issues. Please try again in a moment.",
+                reply_markup=_create_basic_keyboard()
+            )
+            await callback.answer()
+            return
+        
+        # Get welcome message and main menu keyboard
+        welcome_text = _get_welcome_message(user, settings)
+        keyboard = _create_main_menu_keyboard(user, settings)
+        
+        await callback.message.edit_text(
+            text=welcome_text,
+            reply_markup=keyboard,
+            parse_mode="HTML"
+        )
+        await callback.answer()
+        
+    except Exception as e:
+        logger.error(f"Error in start:main callback: {e}")
+        await callback.answer("❌ Error returning to main menu")
+
+
+@start_router.callback_query(F.data == "back_to_main")
+@inject
+async def back_to_main(
+    callback: CallbackQuery,
+    user: Optional[User],
+    settings: Settings
+) -> None:
+    """Handle back to main menu callback."""
+    try:
+        # Handle case when user context is not available
+        if user is None:
+            await callback.message.edit_text(
+                "⚠️ We're experiencing some technical issues. Please try again in a moment.",
+                reply_markup=_create_basic_keyboard()
+            )
+            await callback.answer()
+            return
+        
+        # Get welcome message and main menu keyboard
+        welcome_text = _get_welcome_message(user, settings)
+        keyboard = _create_main_menu_keyboard(user, settings)
+        
+        await callback.message.edit_text(
+            text=welcome_text,
+            reply_markup=keyboard,
+            parse_mode="HTML"
+        )
+        await callback.answer()
+        
+    except Exception as e:
+        logger.error(f"Error in back_to_main: {e}")
+        await callback.answer("❌ Error returning to main menu")
 
 
 # Helper function for localization (placeholder)

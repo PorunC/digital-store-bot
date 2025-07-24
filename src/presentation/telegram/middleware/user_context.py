@@ -56,7 +56,10 @@ class UserContextMiddleware(BaseMiddleware):
 
         except Exception as e:
             logger.error(f"Error in user context middleware: {e}")
-            # Continue without user context on error
+            # Continue without user context on error - provide None user
+            data["user"] = None
+            data["user_id"] = None
+            data["telegram_user"] = data.get("event_from_user")
             return await handler(event, data)
 
     async def _get_or_create_user(

@@ -36,8 +36,22 @@ class DatabaseConfig(BaseModel):
 
     def get_url(self) -> str:
         """Get database URL."""
+        # Check for environment variable first (Docker/production)
+        database_url = os.getenv("DATABASE_URL")
+        if database_url:
+            return database_url
+            
         if self.driver.startswith("sqlite"):
-            return f"{self.driver}:///data/{self.name}.db"
+            # Use absolute path and ensure directory exists
+            from pathlib import Path
+            
+            # Get the project root directory
+            project_root = Path(__file__).parent.parent.parent.parent
+            data_dir = project_root / "data"
+            data_dir.mkdir(exist_ok=True)
+            
+            db_path = data_dir / f"{self.name}.db"
+            return f"{self.driver}:///{db_path}"
         return f"{self.driver}://{self.username}:{self.password}@{self.host}:{self.port}/{self.name}"
 
 

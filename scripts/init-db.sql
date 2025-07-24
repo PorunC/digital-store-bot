@@ -25,7 +25,7 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO botuser;
 
 -- Optimization settings for the database user
 ALTER USER botuser SET synchronous_commit = 'off';
-ALTER USER botuser SET wal_writer_delay = '200ms';
+-- wal_writer_delay cannot be set per user, skip it
 ALTER USER botuser SET commit_delay = 100000;
 ALTER USER botuser SET commit_siblings = 5;
 

@@ -1,14 +1,17 @@
 """Migration manager for database schema evolution."""
 
+from __future__ import annotations
+
 import logging
 import importlib
+import importlib.util
 import inspect
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Type
 
 from sqlalchemy import text, Table, Column, String, DateTime, Boolean, MetaData
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from sqlalchemy.exc import SQLAlchemyError
 
 from .base_migration import BaseMigration
@@ -22,7 +25,7 @@ class MigrationManager:
     def __init__(self, database_url: str, migrations_path: str = "migrations"):
         self.database_url = database_url
         self.migrations_path = Path(migrations_path)
-        self.engine = create_async_engine(database_url)
+        self.engine: AsyncEngine = create_async_engine(database_url)
         
         # Migration tracking table
         self.migration_table = Table(
@@ -47,8 +50,13 @@ class MigrationManager:
             logger.info("Migration system initialized")
             
         except Exception as e:
-            logger.error(f"Failed to initialize migration system: {e}")
-            raise
+            # Handle race condition where table might already exist
+            error_msg = str(e).lower()
+            if "already exists" in error_msg or "duplicate key" in error_msg or "unique constraint" in error_msg:
+                logger.info("Migration table already exists, continuing...")
+            else:
+                logger.error(f"Failed to initialize migration system: {e}")
+                raise
     
     async def discover_migrations(self) -> List[BaseMigration]:
         """Discover all migration files and load them."""
@@ -66,7 +74,7 @@ class MigrationManager:
                 
                 try:
                     # Import the migration module
-                    module_name = f"migrations.{migration_file.stem}"
+                    module_name = f"src.infrastructure.database.migrations.{migration_file.stem}"
                     spec = importlib.util.spec_from_file_location(module_name, migration_file)
                     module = importlib.util.module_from_spec(spec)
                     spec.loader.exec_module(module)

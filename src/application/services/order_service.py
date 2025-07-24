@@ -18,15 +18,33 @@ class OrderApplicationService:
 
     def __init__(
         self,
-        order_repository: OrderRepository,
-        product_repository: ProductRepository,
-        user_repository: UserRepository,
         unit_of_work: UnitOfWork
     ):
-        self.order_repository = order_repository
-        self.product_repository = product_repository
-        self.user_repository = user_repository
         self.unit_of_work = unit_of_work
+        
+    def _get_order_repository(self) -> OrderRepository:
+        """Get order repository from unit of work."""
+        from src.infrastructure.database.repositories.order_repository import SqlAlchemyOrderRepository
+        if hasattr(self.unit_of_work, 'session') and self.unit_of_work.session:
+            return SqlAlchemyOrderRepository(self.unit_of_work.session)
+        else:
+            raise RuntimeError("Unit of work session not available")
+            
+    def _get_product_repository(self) -> ProductRepository:
+        """Get product repository from unit of work."""
+        from src.infrastructure.database.repositories.product_repository import SqlAlchemyProductRepository
+        if hasattr(self.unit_of_work, 'session') and self.unit_of_work.session:
+            return SqlAlchemyProductRepository(self.unit_of_work.session)
+        else:
+            raise RuntimeError("Unit of work session not available")
+            
+    def _get_user_repository(self) -> UserRepository:
+        """Get user repository from unit of work."""
+        from src.infrastructure.database.repositories.user_repository import SqlAlchemyUserRepository
+        if hasattr(self.unit_of_work, 'session') and self.unit_of_work.session:
+            return SqlAlchemyUserRepository(self.unit_of_work.session)
+        else:
+            raise RuntimeError("Unit of work session not available")
 
     async def create_order(
         self,
@@ -43,12 +61,12 @@ class OrderApplicationService:
         """Create a new order."""
         async with self.unit_of_work:
             # Validate user exists
-            user = await self.user_repository.get_by_id(user_id)
+            user = await self._get_user_repository().get_by_id(user_id)
             if not user:
                 raise ValueError(f"User with ID {user_id} not found")
 
             # Validate product exists and is available
-            product = await self.product_repository.get_by_id(product_id)
+            product = await self._get_product_repository().get_by_id(product_id)
             if not product:
                 raise ValueError(f"Product with ID {product_id} not found")
 
@@ -85,34 +103,39 @@ class OrderApplicationService:
 
             # Reserve stock
             product.reduce_stock(quantity)
-            await self.product_repository.update(product)
+            await self._get_product_repository().update(product)
 
-            order = await self.order_repository.add(order)
+            order = await self._get_order_repository().add(order)
             await self._publish_events(order)
             await self.unit_of_work.commit()
             return order
 
     async def get_order_by_id(self, order_id: str) -> Optional[Order]:
         """Get order by ID."""
-        return await self.order_repository.get_by_id(order_id)
+        async with self.unit_of_work:
+            return await self._get_order_repository().get_by_id(order_id)
 
     async def get_order_by_payment_id(self, payment_id: str) -> Optional[Order]:
         """Get order by payment ID."""
-        return await self.order_repository.find_by_payment_id(payment_id)
+        async with self.unit_of_work:
+            return await self._get_order_repository().find_by_payment_id(payment_id)
 
     async def get_user_orders(self, user_id: str) -> List[Order]:
         """Get orders for a user."""
-        user_uuid = uuid.UUID(user_id)
-        return await self.order_repository.find_by_user_id(user_uuid)
+        async with self.unit_of_work:
+            user_uuid = uuid.UUID(user_id)
+            return await self._get_order_repository().find_by_user_id(user_uuid)
 
     async def get_pending_orders(self, user_id: str) -> List[Order]:
         """Get pending orders for a user."""
-        user_uuid = uuid.UUID(user_id)
-        return await self.order_repository.find_pending_orders(user_uuid)
+        async with self.unit_of_work:
+            user_uuid = uuid.UUID(user_id)
+            return await self._get_order_repository().find_pending_orders(user_uuid)
 
     async def get_orders_by_status(self, status: OrderStatus) -> List[Order]:
         """Get orders by status."""
-        return await self.order_repository.find_by_status(status)
+        async with self.unit_of_work:
+            return await self._get_order_repository().find_by_status(status)
 
     async def update_payment_info(
         self,
@@ -124,7 +147,7 @@ class OrderApplicationService:
     ) -> Order:
         """Update order payment information."""
         async with self.unit_of_work:
-            order = await self.order_repository.get_by_id(order_id)
+            order = await self._get_order_repository().get_by_id(order_id)
             if not order:
                 raise ValueError(f"Order with ID {order_id} not found")
 
@@ -135,7 +158,7 @@ class OrderApplicationService:
                 payment_url=payment_url
             )
 
-            order = await self.order_repository.update(order)
+            order = await self._get_order_repository().update(order)
             await self._publish_events(order)
             await self.unit_of_work.commit()
             return order
@@ -147,7 +170,7 @@ class OrderApplicationService:
     ) -> Order:
         """Mark order as paid."""
         async with self.unit_of_work:
-            order = await self.order_repository.get_by_id(order_id)
+            order = await self._get_order_repository().get_by_id(order_id)
             if not order:
                 raise ValueError(f"Order with ID {order_id} not found")
 
@@ -156,7 +179,7 @@ class OrderApplicationService:
 
             order.mark_as_paid(external_payment_id)
 
-            order = await self.order_repository.update(order)
+            order = await self._get_order_repository().update(order)
             await self._publish_events(order)
             await self.unit_of_work.commit()
             return order
@@ -164,7 +187,7 @@ class OrderApplicationService:
     async def mark_as_completed(self, order_id: str, notes: Optional[str] = None) -> Order:
         """Mark order as completed."""
         async with self.unit_of_work:
-            order = await self.order_repository.get_by_id(order_id)
+            order = await self._get_order_repository().get_by_id(order_id)
             if not order:
                 raise ValueError(f"Order with ID {order_id} not found")
 
@@ -175,9 +198,9 @@ class OrderApplicationService:
 
             # Update user subscription if applicable
             if not order.is_trial:
-                user = await self.user_repository.get_by_id(str(order.user_id))
+                user = await self._get_user_repository().get_by_id(str(order.user_id))
                 if user:
-                    product = await self.product_repository.get_by_id(str(order.product_id))
+                    product = await self._get_product_repository().get_by_id(str(order.product_id))
                     if product:
                         if order.is_extend:
                             user.extend_subscription(product.duration_days)
@@ -185,9 +208,9 @@ class OrderApplicationService:
                             user.extend_subscription(product.duration_days)
                         
                         user.record_purchase(order.amount.amount, order.amount.currency)
-                        await self.user_repository.update(user)
+                        await self._get_user_repository().update(user)
 
-            order = await self.order_repository.update(order)
+            order = await self._get_order_repository().update(order)
             await self._publish_events(order)
             await self.unit_of_work.commit()
             return order
@@ -195,7 +218,7 @@ class OrderApplicationService:
     async def cancel_order(self, order_id: str, reason: Optional[str] = None) -> Order:
         """Cancel an order."""
         async with self.unit_of_work:
-            order = await self.order_repository.get_by_id(order_id)
+            order = await self._get_order_repository().get_by_id(order_id)
             if not order:
                 raise ValueError(f"Order with ID {order_id} not found")
 
@@ -204,14 +227,14 @@ class OrderApplicationService:
 
             # Release reserved stock
             if order.status == OrderStatus.PENDING:
-                product = await self.product_repository.get_by_id(str(order.product_id))
+                product = await self._get_product_repository().get_by_id(str(order.product_id))
                 if product:
                     product.add_stock(order.quantity)
-                    await self.product_repository.update(product)
+                    await self._get_product_repository().update(product)
 
             order.cancel(reason)
 
-            order = await self.order_repository.update(order)
+            order = await self._get_order_repository().update(order)
             await self._publish_events(order)
             await self.unit_of_work.commit()
             return order
@@ -219,7 +242,7 @@ class OrderApplicationService:
     async def expire_order(self, order_id: str) -> Order:
         """Expire an order due to timeout."""
         async with self.unit_of_work:
-            order = await self.order_repository.get_by_id(order_id)
+            order = await self._get_order_repository().get_by_id(order_id)
             if not order:
                 raise ValueError(f"Order with ID {order_id} not found")
 
@@ -227,23 +250,24 @@ class OrderApplicationService:
                 raise ValueError(f"Cannot expire order {order_id} - not pending")
 
             # Release reserved stock
-            product = await self.product_repository.get_by_id(str(order.product_id))
+            product = await self._get_product_repository().get_by_id(str(order.product_id))
             if product:
                 product.add_stock(order.quantity)
-                await self.product_repository.update(product)
+                await self._get_product_repository().update(product)
 
             order.expire()
 
-            order = await self.order_repository.update(order)
+            order = await self._get_order_repository().update(order)
             await self._publish_events(order)
             await self.unit_of_work.commit()
             return order
 
     async def process_expired_orders(self) -> List[Order]:
         """Process all expired orders."""
-        expired_orders = await self.order_repository.find_expired()
+        async with self.unit_of_work:
+            expired_orders = await self._get_order_repository().find_expired()
+            
         processed_orders = []
-
         for order in expired_orders:
             try:
                 processed_order = await self.expire_order(str(order.id))
@@ -257,7 +281,7 @@ class OrderApplicationService:
     async def add_order_notes(self, order_id: str, notes: str) -> Order:
         """Add notes to an order."""
         async with self.unit_of_work:
-            order = await self.order_repository.get_by_id(order_id)
+            order = await self._get_order_repository().get_by_id(order_id)
             if not order:
                 raise ValueError(f"Order with ID {order_id} not found")
 
@@ -267,7 +291,7 @@ class OrderApplicationService:
             
             order.add_notes(new_notes)
 
-            order = await self.order_repository.update(order)
+            order = await self._get_order_repository().update(order)
             await self.unit_of_work.commit()
             return order
 
@@ -277,11 +301,13 @@ class OrderApplicationService:
         end_date: Optional[datetime] = None
     ) -> dict:
         """Get revenue statistics."""
-        return await self.order_repository.get_revenue_stats(start_date, end_date)
+        async with self.unit_of_work:
+            return await self._get_order_repository().get_revenue_stats(start_date, end_date)
 
     async def get_order_stats(self) -> dict:
         """Get order statistics."""
-        return await self.order_repository.get_order_stats()
+        async with self.unit_of_work:
+            return await self._get_order_repository().get_order_stats()
 
     async def _publish_events(self, order: Order) -> None:
         """Publish domain events."""

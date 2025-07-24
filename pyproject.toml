@@ -9,13 +9,20 @@ readme = "README.md"
 python = "^3.12"
 # Core framework
 aiogram = "^3.15.0"
+fastapi = "^0.115.0"
+uvicorn = "^0.32.0"
 pydantic = "^2.10.0"
 pydantic-settings = "^2.6.0"
+
+# Web framework dependencies
+jinja2 = "^3.1.4"
+python-multipart = "^0.0.6"
 
 # Database
 sqlalchemy = {extras = ["asyncio"], version = "^2.0.36"}
 alembic = "^1.14.0"
 aiosqlite = "^0.20.0"
+asyncpg = "^0.29.0"
 
 # Dependency Injection
 dependency-injector = "^4.42.0"
@@ -33,6 +40,9 @@ babel = "^2.16.0"
 cachetools = "^5.5.0"
 requests = "^2.31.0"
 apscheduler = "^3.11.0"
+
+# Internationalization
+fluent-runtime = "^0.4.0"
 
 # Validation & Serialization
 marshmallow = "^3.23.0"

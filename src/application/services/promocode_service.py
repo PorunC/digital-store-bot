@@ -16,13 +16,25 @@ class PromocodeApplicationService:
 
     def __init__(
         self,
-        promocode_repository: PromocodeRepository,
-        user_repository: UserRepository,
         unit_of_work: UnitOfWork
     ):
-        self.promocode_repository = promocode_repository
-        self.user_repository = user_repository
         self.unit_of_work = unit_of_work
+        
+    def _get_promocode_repository(self) -> PromocodeRepository:
+        """Get promocode repository from unit of work."""
+        from src.infrastructure.database.repositories.promocode_repository import SqlAlchemyPromocodeRepository
+        if hasattr(self.unit_of_work, 'session') and self.unit_of_work.session:
+            return SqlAlchemyPromocodeRepository(self.unit_of_work.session)
+        else:
+            raise RuntimeError("Unit of work session not available")
+            
+    def _get_user_repository(self) -> UserRepository:
+        """Get user repository from unit of work."""
+        from src.infrastructure.database.repositories.user_repository import SqlAlchemyUserRepository
+        if hasattr(self.unit_of_work, 'session') and self.unit_of_work.session:
+            return SqlAlchemyUserRepository(self.unit_of_work.session)
+        else:
+            raise RuntimeError("Unit of work session not available")
 
     async def create_promocode(
         self,
@@ -38,7 +50,7 @@ class PromocodeApplicationService:
         """Create a new promocode."""
         async with self.unit_of_work:
             # Check if promocode with same code exists
-            existing_promocode = await self.promocode_repository.find_by_code(code)
+            existing_promocode = await self._get_promocode_repository().find_by_code(code)
             if existing_promocode:
                 raise ValueError(f"Promocode with code '{code}' already exists")
 
@@ -61,78 +73,81 @@ class PromocodeApplicationService:
                 metadata=metadata or {}
             )
 
-            promocode = await self.promocode_repository.add(promocode)
+            promocode = await self._get_promocode_repository().add(promocode)
             await self._publish_events(promocode)
             await self.unit_of_work.commit()
             return promocode
 
     async def get_promocode_by_id(self, promocode_id: str) -> Optional[Promocode]:
         """Get promocode by ID."""
-        return await self.promocode_repository.get_by_id(promocode_id)
+        async with self.unit_of_work:
+            return await self._get_promocode_repository().get_by_id(promocode_id)
 
     async def get_promocode_by_code(self, code: str) -> Optional[Promocode]:
         """Get promocode by code."""
-        return await self.promocode_repository.find_by_code(code.upper())
+        async with self.unit_of_work:
+            return await self._get_promocode_repository().find_by_code(code.upper())
 
     async def validate_promocode(self, code: str, user_id: Optional[str] = None) -> dict:
         """Validate if a promocode can be used."""
-        promocode = await self.promocode_repository.find_by_code(code.upper())
-        
-        if not promocode:
-            return {
-                "valid": False,
-                "error": "Promocode not found",
-                "promocode": None
-            }
-
-        # Check if promocode is active
-        if promocode.status != PromocodeStatus.ACTIVE:
-            return {
-                "valid": False,
-                "error": f"Promocode is {promocode.status.value}",
-                "promocode": promocode
-            }
-
-        # Check expiration
-        if promocode.expires_at and promocode.expires_at <= datetime.utcnow():
-            return {
-                "valid": False,
-                "error": "Promocode has expired",
-                "promocode": promocode
-            }
-
-        # Check usage limits
-        if promocode.max_uses != -1 and promocode.current_uses >= promocode.max_uses:
-            return {
-                "valid": False,
-                "error": "Promocode usage limit reached",
-                "promocode": promocode
-            }
-
-        # Additional user-specific validations
-        if user_id:
-            user = await self.user_repository.get_by_id(user_id)
-            if not user:
+        async with self.unit_of_work:
+            promocode = await self._get_promocode_repository().find_by_code(code.upper())
+            
+            if not promocode:
                 return {
                     "valid": False,
-                    "error": "User not found",
+                    "error": "Promocode not found",
+                    "promocode": None
+                }
+
+            # Check if promocode is active
+            if promocode.status != PromocodeStatus.ACTIVE:
+                return {
+                    "valid": False,
+                    "error": f"Promocode is {promocode.status.value}",
                     "promocode": promocode
                 }
 
-            # Check if user can use trial extension codes
-            if promocode.promocode_type == PromocodeType.TRIAL_EXTENSION:
-                if user.has_active_subscription():
+            # Check expiration
+            if promocode.expires_at and promocode.expires_at <= datetime.utcnow():
+                return {
+                    "valid": False,
+                    "error": "Promocode has expired",
+                    "promocode": promocode
+                }
+
+            # Check usage limits
+            if promocode.max_uses != -1 and promocode.current_uses >= promocode.max_uses:
+                return {
+                    "valid": False,
+                    "error": "Promocode usage limit reached",
+                    "promocode": promocode
+                }
+
+            # Additional user-specific validations
+            if user_id:
+                user = await self._get_user_repository().get_by_id(user_id)
+                if not user:
                     return {
                         "valid": False,
-                        "error": "Cannot use trial extension with active subscription",
+                        "error": "User not found",
                         "promocode": promocode
                     }
 
-        return {
-            "valid": True,
-            "error": None,
-            "promocode": promocode
-        }
+                # Check if user can use trial extension codes
+                if promocode.promocode_type == PromocodeType.TRIAL_EXTENSION:
+                    if user.has_active_subscription():
+                        return {
+                            "valid": False,
+                            "error": "Cannot use trial extension with active subscription",
+                            "promocode": promocode
+                        }
+
+            return {
+                "valid": True,
+                "error": None,
+                "promocode": promocode
+            }
 
     async def use_promocode(
         self,
@@ -148,7 +163,7 @@ class PromocodeApplicationService:
                 return validation
 
             promocode = validation["promocode"]
-            user = await self.user_repository.get_by_id(user_id)
+            user = await self._get_user_repository().get_by_id(user_id)
 
             # Apply promocode effects
             result = {}
@@ -175,8 +190,8 @@ class PromocodeApplicationService:
             promocode.use_promocode(user_id, order_id)
 
             # Save changes
-            await self.user_repository.update(user)
-            promocode = await self.promocode_repository.update(promocode)
+            await self._get_user_repository().update(user)
+            promocode = await self._get_promocode_repository().update(promocode)
             
             await self._publish_events(promocode)
             await self.unit_of_work.commit()
@@ -193,13 +208,13 @@ class PromocodeApplicationService:
     async def activate_promocode(self, promocode_id: str) -> Promocode:
         """Activate a promocode."""
         async with self.unit_of_work:
-            promocode = await self.promocode_repository.get_by_id(promocode_id)
+            promocode = await self._get_promocode_repository().get_by_id(promocode_id)
             if not promocode:
                 raise ValueError(f"Promocode with ID {promocode_id} not found")
 
             promocode.activate()
 
-            promocode = await self.promocode_repository.update(promocode)
+            promocode = await self._get_promocode_repository().update(promocode)
             await self._publish_events(promocode)
             await self.unit_of_work.commit()
             return promocode
@@ -211,39 +226,44 @@ class PromocodeApplicationService:
     ) -> Promocode:
         """Deactivate a promocode."""
         async with self.unit_of_work:
-            promocode = await self.promocode_repository.get_by_id(promocode_id)
+            promocode = await self._get_promocode_repository().get_by_id(promocode_id)
             if not promocode:
                 raise ValueError(f"Promocode with ID {promocode_id} not found")
 
             promocode.deactivate(reason)
 
-            promocode = await self.promocode_repository.update(promocode)
+            promocode = await self._get_promocode_repository().update(promocode)
             await self._publish_events(promocode)
             await self.unit_of_work.commit()
             return promocode
 
     async def get_active_promocodes(self) -> List[Promocode]:
         """Get all active promocodes."""
-        return await self.promocode_repository.find_active_codes()
+        async with self.unit_of_work:
+            return await self._get_promocode_repository().find_active_codes()
 
     async def get_promocodes_by_type(self, promocode_type: PromocodeType) -> List[Promocode]:
         """Get promocodes by type."""
-        return await self.promocode_repository.find_by_type(promocode_type)
+        async with self.unit_of_work:
+            return await self._get_promocode_repository().find_by_type(promocode_type)
 
     async def search_promocodes(self, query: str) -> List[Promocode]:
         """Search promocodes by query."""
-        return await self.promocode_repository.search_codes(query)
+        async with self.unit_of_work:
+            return await self._get_promocode_repository().search_codes(query)
 
     async def process_expired_promocodes(self) -> List[Promocode]:
         """Process expired promocodes."""
-        expired_promocodes = await self.promocode_repository.find_expired_codes()
+        async with self.unit_of_work:
+            expired_promocodes = await self._get_promocode_repository().find_expired_codes()
+            
         processed_promocodes = []
 
         for promocode in expired_promocodes:
             try:
                 async with self.unit_of_work:
                     promocode.expire()
-                    promocode = await self.promocode_repository.update(promocode)
+                    promocode = await self._get_promocode_repository().update(promocode)
                     await self._publish_events(promocode)
                     await self.unit_of_work.commit()
                     processed_promocodes.append(promocode)
@@ -255,14 +275,16 @@ class PromocodeApplicationService:
 
     async def process_exhausted_promocodes(self) -> List[Promocode]:
         """Process promocodes that have reached max uses."""
-        exhausted_promocodes = await self.promocode_repository.find_exhausted_codes()
+        async with self.unit_of_work:
+            exhausted_promocodes = await self._get_promocode_repository().find_exhausted_codes()
+            
         processed_promocodes = []
 
         for promocode in exhausted_promocodes:
             try:
                 async with self.unit_of_work:
                     promocode.deactivate("Maximum usage reached")
-                    promocode = await self.promocode_repository.update(promocode)
+                    promocode = await self._get_promocode_repository().update(promocode)
                     await self._publish_events(promocode)
                     await self.unit_of_work.commit()
                     processed_promocodes.append(promocode)
@@ -292,13 +314,14 @@ class PromocodeApplicationService:
         
         for i in range(count):
             # Generate unique code
-            while True:
-                suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
-                code = f"{prefix}{suffix}"
-                
-                existing = await self.promocode_repository.find_by_code(code)
-                if not existing:
-                    break
+            async with self.unit_of_work:
+                while True:
+                    suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+                    code = f"{prefix}{suffix}"
+                    
+                    existing = await self._get_promocode_repository().find_by_code(code)
+                    if not existing:
+                        break
 
             promocode = await self.create_promocode(
                 code=code,
@@ -316,7 +339,8 @@ class PromocodeApplicationService:
 
     async def get_promocode_statistics(self) -> dict:
         """Get promocode usage statistics."""
-        return await self.promocode_repository.get_usage_stats()
+        async with self.unit_of_work:
+            return await self._get_promocode_repository().get_usage_stats()
 
     async def calculate_discount(
         self,

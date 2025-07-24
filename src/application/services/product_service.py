@@ -15,11 +15,17 @@ class ProductApplicationService:
 
     def __init__(
         self,
-        product_repository: ProductRepository,
         unit_of_work: UnitOfWork
     ):
-        self.product_repository = product_repository
         self.unit_of_work = unit_of_work
+        
+    def _get_product_repository(self) -> ProductRepository:
+        """Get product repository from unit of work."""
+        from src.infrastructure.database.repositories.product_repository import SqlAlchemyProductRepository
+        if hasattr(self.unit_of_work, 'session') and self.unit_of_work.session:
+            return SqlAlchemyProductRepository(self.unit_of_work.session)
+        else:
+            raise RuntimeError("Unit of work session not available")
 
     async def create_product(
         self,
@@ -38,7 +44,7 @@ class ProductApplicationService:
         """Create a new product."""
         async with self.unit_of_work:
             # Check if product with same name exists
-            existing_product = await self.product_repository.find_by_name(name)
+            existing_product = await self._get_product_repository().find_by_name(name)
             if existing_product:
                 raise ValueError(f"Product with name '{name}' already exists")
 
@@ -57,34 +63,40 @@ class ProductApplicationService:
                 metadata=metadata or {}
             )
 
-            product = await self.product_repository.add(product)
+            product = await self._get_product_repository().add(product)
             await self._publish_events(product)
             await self.unit_of_work.commit()
             return product
 
     async def get_product_by_id(self, product_id: str) -> Optional[Product]:
         """Get product by ID."""
-        return await self.product_repository.get_by_id(product_id)
+        async with self.unit_of_work:
+            return await self._get_product_repository().get_by_id(product_id)
 
     async def get_product_by_name(self, name: str) -> Optional[Product]:
         """Get product by name."""
-        return await self.product_repository.find_by_name(name)
+        async with self.unit_of_work:
+            return await self._get_product_repository().find_by_name(name)
 
     async def get_all_products(self) -> List[Product]:
         """Get all products."""
-        return await self.product_repository.get_all()
+        async with self.unit_of_work:
+            return await self._get_product_repository().get_all()
 
     async def get_available_products(self) -> List[Product]:
         """Get available products."""
-        return await self.product_repository.find_available()
+        async with self.unit_of_work:
+            return await self._get_product_repository().find_available()
 
     async def get_products_by_category(self, category: ProductCategory) -> List[Product]:
         """Get products by category."""
-        return await self.product_repository.find_by_category(category)
+        async with self.unit_of_work:
+            return await self._get_product_repository().find_by_category(category)
 
     async def search_products(self, query: str) -> List[Product]:
         """Search products by query."""
-        return await self.product_repository.search(query)
+        async with self.unit_of_work:
+            return await self._get_product_repository().search(query)
 
     async def update_product(
         self,
@@ -103,13 +115,13 @@ class ProductApplicationService:
     ) -> Product:
         """Update product information."""
         async with self.unit_of_work:
-            product = await self.product_repository.get_by_id(product_id)
+            product = await self._get_product_repository().get_by_id(product_id)
             if not product:
                 raise ValueError(f"Product with ID {product_id} not found")
 
             # Check if name is being changed and if it conflicts
             if name and name != product.name:
-                existing_product = await self.product_repository.find_by_name(name)
+                existing_product = await self._get_product_repository().find_by_name(name)
                 if existing_product and str(existing_product.id) != product_id:
                     raise ValueError(f"Product with name '{name}' already exists")
 
@@ -135,7 +147,7 @@ class ProductApplicationService:
                 metadata=metadata
             )
 
-            product = await self.product_repository.update(product)
+            product = await self._get_product_repository().update(product)
             await self._publish_events(product)
             await self.unit_of_work.commit()
             return product
@@ -143,13 +155,13 @@ class ProductApplicationService:
     async def activate_product(self, product_id: str) -> Product:
         """Activate a product."""
         async with self.unit_of_work:
-            product = await self.product_repository.get_by_id(product_id)
+            product = await self._get_product_repository().get_by_id(product_id)
             if not product:
                 raise ValueError(f"Product with ID {product_id} not found")
 
             product.activate()
 
-            product = await self.product_repository.update(product)
+            product = await self._get_product_repository().update(product)
             await self._publish_events(product)
             await self.unit_of_work.commit()
             return product
@@ -157,13 +169,13 @@ class ProductApplicationService:
     async def deactivate_product(self, product_id: str, reason: Optional[str] = None) -> Product:
         """Deactivate a product."""
         async with self.unit_of_work:
-            product = await self.product_repository.get_by_id(product_id)
+            product = await self._get_product_repository().get_by_id(product_id)
             if not product:
                 raise ValueError(f"Product with ID {product_id} not found")
 
             product.deactivate(reason)
 
-            product = await self.product_repository.update(product)
+            product = await self._get_product_repository().update(product)
             await self._publish_events(product)
             await self.unit_of_work.commit()
             return product
@@ -171,7 +183,7 @@ class ProductApplicationService:
     async def update_stock(self, product_id: str, stock_change: int) -> Product:
         """Update product stock."""
         async with self.unit_of_work:
-            product = await self.product_repository.get_by_id(product_id)
+            product = await self._get_product_repository().get_by_id(product_id)
             if not product:
                 raise ValueError(f"Product with ID {product_id} not found")
 
@@ -180,23 +192,24 @@ class ProductApplicationService:
             elif stock_change < 0:
                 product.reduce_stock(abs(stock_change))
 
-            product = await self.product_repository.update(product)
+            product = await self._get_product_repository().update(product)
             await self._publish_events(product)
             await self.unit_of_work.commit()
             return product
 
     async def check_availability(self, product_id: str, quantity: int = 1) -> bool:
         """Check if product is available for purchase."""
-        product = await self.product_repository.get_by_id(product_id)
-        if not product:
-            return False
+        async with self.unit_of_work:
+            product = await self._get_product_repository().get_by_id(product_id)
+            if not product:
+                return False
 
-        return product.is_available() and product.has_sufficient_stock(quantity)
+            return product.is_available() and product.has_sufficient_stock(quantity)
 
     async def reserve_stock(self, product_id: str, quantity: int = 1) -> Product:
         """Reserve product stock for an order."""
         async with self.unit_of_work:
-            product = await self.product_repository.get_by_id(product_id)
+            product = await self._get_product_repository().get_by_id(product_id)
             if not product:
                 raise ValueError(f"Product with ID {product_id} not found")
 
@@ -208,7 +221,7 @@ class ProductApplicationService:
 
             product.reduce_stock(quantity)
 
-            product = await self.product_repository.update(product)
+            product = await self._get_product_repository().update(product)
             await self._publish_events(product)
             await self.unit_of_work.commit()
             return product
@@ -216,36 +229,38 @@ class ProductApplicationService:
     async def release_stock(self, product_id: str, quantity: int = 1) -> Product:
         """Release reserved stock back to inventory."""
         async with self.unit_of_work:
-            product = await self.product_repository.get_by_id(product_id)
+            product = await self._get_product_repository().get_by_id(product_id)
             if not product:
                 raise ValueError(f"Product with ID {product_id} not found")
 
             product.add_stock(quantity)
 
-            product = await self.product_repository.update(product)
+            product = await self._get_product_repository().update(product)
             await self._publish_events(product)
             await self.unit_of_work.commit()
             return product
 
     async def get_low_stock_products(self, threshold: int = 10) -> List[Product]:
         """Get products with low stock."""
-        return await self.product_repository.find_low_stock(threshold)
+        async with self.unit_of_work:
+            return await self._get_product_repository().find_low_stock(threshold)
 
     async def get_product_categories(self) -> List[str]:
         """Get all product categories."""
-        return await self.product_repository.get_categories()
+        async with self.unit_of_work:
+            return await self._get_product_repository().get_categories()
 
     async def delete_product(self, product_id: str) -> bool:
         """Delete a product."""
         async with self.unit_of_work:
-            product = await self.product_repository.get_by_id(product_id)
+            product = await self._get_product_repository().get_by_id(product_id)
             if not product:
                 return False
 
             # Publish deletion event before removing
             await self._publish_events(product)
             
-            success = await self.product_repository.delete(product_id)
+            success = await self._get_product_repository().delete(product_id)
             if success:
                 await self.unit_of_work.commit()
             

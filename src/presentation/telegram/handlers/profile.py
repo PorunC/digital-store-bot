@@ -15,8 +15,8 @@ from src.application.services import (
     OrderApplicationService,
     TrialApplicationService
 )
-from src.domain.entities.user import SubscriptionType
-from src.shared.dependency_injection import container
+from src.domain.entities.user import User, SubscriptionType
+from src.shared.dependency_injection import container, inject
 
 profile_router = Router()
 
@@ -25,14 +25,75 @@ class ProfileStates(StatesGroup):
     waiting_for_language = State()
 
 
-@profile_router.message(Command("profile"))
-async def show_profile(message: Message):
-    """Show user profile information."""
-    user_service: UserApplicationService = container.get(UserApplicationService)
-    referral_service: ReferralApplicationService = container.get(ReferralApplicationService)
-    order_service: OrderApplicationService = container.get(OrderApplicationService)
+@profile_router.callback_query(F.data == "profile:main")
+@inject
+async def show_profile_callback(
+    callback: CallbackQuery,
+    user: Optional[User],
+    user_service: UserApplicationService,
+    referral_service: ReferralApplicationService,
+    order_service: OrderApplicationService
+):
+    """Show user profile information via callback."""
+    if not user:
+        await callback.answer("❌ User not found. Please use /start first.", show_alert=True)
+        return
+
+    # Get user statistics
+    user_orders = await order_service.get_user_orders(str(user.id))
+    referral_stats = await referral_service.get_referral_statistics(str(user.id))
     
-    user = await user_service.get_user_by_telegram_id(message.from_user.id)
+    # Format subscription info
+    sub_info = _format_subscription_info(user)
+    
+    # Format referral info
+    referral_info = (
+        f"👥 **Referrals**\n"
+        f"• Active: {referral_stats['active_referrals']}\n"
+        f"• Conversions: {referral_stats['converted_referrals']}\n"
+        f"• Rewards earned: {referral_stats['first_level_rewards_granted'] + referral_stats['second_level_rewards_granted']}\n"
+    )
+    
+    profile_text = (
+        f"👤 **Your Profile**\n\n"
+        f"🆔 ID: `{user.telegram_id}`\n"
+        f"👨‍💼 Name: {user.profile.first_name}\n"
+        f"🌐 Language: {user.language_code or 'en'}\n"
+        f"📅 Joined: {user.created_at.strftime('%Y-%m-%d')}\n"
+        f"⏰ Last active: {user.last_active_at.strftime('%Y-%m-%d %H:%M') if user.last_active_at else 'Never'}\n\n"
+        f"{sub_info}\n"
+        f"{referral_info}\n"
+        f"🛍️ **Orders**\n"
+        f"• Total orders: {len(user_orders)}\n"
+        f"• Total spent: ${user.total_spent_amount:.2f}\n"
+    )
+
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="🌐 Change Language", callback_data="profile_language"),
+            InlineKeyboardButton(text="🔄 Refresh", callback_data="profile_refresh")
+        ],
+        [
+            InlineKeyboardButton(text="👥 My Referrals", callback_data="profile_referrals"),
+            InlineKeyboardButton(text="🛍️ Order History", callback_data="profile_orders")
+        ],
+        [InlineKeyboardButton(text="🔙 Back to Main", callback_data="back_to_main")]
+    ])
+
+    await callback.message.edit_text(profile_text, reply_markup=keyboard, parse_mode="Markdown")
+    await callback.answer()
+
+
+@profile_router.message(Command("profile"))
+@inject
+async def show_profile(
+    message: Message,
+    user: Optional[User],
+    user_service: UserApplicationService,
+    referral_service: ReferralApplicationService,
+    order_service: OrderApplicationService
+):
+    """Show user profile information."""
     if not user:
         await message.answer("❌ User not found. Please use /start first.")
         return
@@ -56,14 +117,14 @@ async def show_profile(message: Message):
         f"👤 **Your Profile**\n\n"
         f"🆔 ID: `{user.telegram_id}`\n"
         f"👨‍💼 Name: {user.profile.first_name}\n"
-        f"🌐 Language: {user.profile.language_code or 'en'}\n"
+        f"🌐 Language: {user.language_code or 'en'}\n"
         f"📅 Joined: {user.created_at.strftime('%Y-%m-%d')}\n"
-        f"⏰ Last active: {user.last_activity_at.strftime('%Y-%m-%d %H:%M') if user.last_activity_at else 'Never'}\n\n"
+        f"⏰ Last active: {user.last_active_at.strftime('%Y-%m-%d %H:%M') if user.last_active_at else 'Never'}\n\n"
         f"{sub_info}\n"
         f"{referral_info}\n"
         f"🛍️ **Orders**\n"
         f"• Total orders: {len(user_orders)}\n"
-        f"• Total spent: ${user.total_spent:.2f}\n"
+        f"• Total spent: ${user.total_spent_amount:.2f}\n"
     )
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -267,6 +328,46 @@ async def show_orders(callback: CallbackQuery):
     await callback.answer()
 
 
+@profile_router.callback_query(F.data == "referral:main")
+@inject
+async def show_referral_callback(
+    callback: CallbackQuery,
+    user: Optional[User]
+):
+    """Show referral program information via callback."""
+    if not user:
+        await callback.answer("❌ User not found. Please use /start first.", show_alert=True)
+        return
+
+    bot_info = await callback.bot.get_me()
+    referral_link = f"https://t.me/{bot_info.username}?start=ref_{user.telegram_id}"
+    
+    referral_text = (
+        f"👥 **Referral Program**\n\n"
+        f"🎁 **Earn rewards by referring friends!**\n\n"
+        f"**How it works:**\n"
+        f"1️⃣ Share your unique referral link\n"
+        f"2️⃣ Friends join using your link\n"
+        f"3️⃣ You get 7 days when they join\n"
+        f"4️⃣ You get 14 days when they purchase\n\n"
+        f"🔗 **Your referral link:**\n"
+        f"`{referral_link}`\n\n"
+        f"💡 **Tips:**\n"
+        f"• Share in groups and social media\n"
+        f"• Explain the benefits to friends\n"
+        f"• Help them get started\n"
+    )
+
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="👥 My Referrals", callback_data="profile_referrals")],
+        [InlineKeyboardButton(text="📋 Copy Link", callback_data="copy_referral_link")],
+        [InlineKeyboardButton(text="🔙 Back to Main", callback_data="back_to_main")]
+    ])
+
+    await callback.message.edit_text(referral_text, reply_markup=keyboard, parse_mode="Markdown")
+    await callback.answer()
+
+
 @profile_router.message(Command("referral"))
 async def referral_info(message: Message):
     """Show referral program information."""
@@ -319,7 +420,7 @@ async def trial_info(message: Message):
     
     trial_text = f"🎁 **Free Trial Program**\n\n"
     
-    if user.has_active_subscription():
+    if user.has_active_subscription:
         if user.subscription_type == SubscriptionType.TRIAL:
             expires_in = (user.subscription_expires_at - datetime.utcnow()).days
             trial_text += (
@@ -400,7 +501,7 @@ async def start_trial(callback: CallbackQuery):
 
 def _format_subscription_info(user) -> str:
     """Format user subscription information."""
-    if not user.has_active_subscription():
+    if not user.has_active_subscription:
         return (
             f"💎 **Subscription: Free**\n"
             f"⏰ No active subscription\n"
@@ -410,9 +511,9 @@ def _format_subscription_info(user) -> str:
     expires_in_days = (user.subscription_expires_at - datetime.utcnow()).days
     
     emoji = {
-        SubscriptionType.FREE: "🆓",
         SubscriptionType.TRIAL: "🎁", 
-        SubscriptionType.PREMIUM: "💎"
+        SubscriptionType.PREMIUM: "💎",
+        SubscriptionType.EXTENDED: "⭐"
     }.get(user.subscription_type, "❓")
     
     return (

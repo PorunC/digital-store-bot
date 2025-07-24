@@ -47,7 +47,7 @@ class InitialSchemaMigration(BaseMigration):
                 total_referrals INTEGER DEFAULT 0,
                 last_activity_at TIMESTAMP,
                 
-                referrer_id UUID REFERENCES users(id),
+                referrer_id VARCHAR(255),
                 invite_source VARCHAR(255),
                 metadata JSONB DEFAULT '{}'::jsonb,
                 

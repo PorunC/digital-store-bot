@@ -16,16 +16,36 @@ logger = logging.getLogger(__name__)
 catalog_router = Router(name="catalog")
 
 
+@catalog_router.callback_query(F.data == "show_catalog")
+@inject
+async def show_catalog_alias(
+    callback_query: CallbackQuery,
+    user: Optional[User],
+    product_service: ProductApplicationService,
+    settings: Settings
+) -> None:
+    """Show catalog (alias for catalog:main)."""
+    await show_catalog_main(callback_query, user, product_service, settings)
+
+
 @catalog_router.callback_query(F.data == "catalog:main")
 @inject
 async def show_catalog_main(
     callback_query: CallbackQuery,
-    user: User,
+    user: Optional[User],
     product_service: ProductApplicationService,
     settings: Settings
 ) -> None:
     """Show main catalog with categories."""
     try:
+        # Handle case when user context is not available
+        if user is None:
+            await callback_query.message.edit_text(
+                "⚠️ We're experiencing some technical issues. Please try again in a moment."
+            )
+            await callback_query.answer()
+            return
+            
         categories = await product_service.get_product_categories()
         
         text = f"""
@@ -52,11 +72,19 @@ Browse our digital products by category:
 @inject
 async def show_category_products(
     callback_query: CallbackQuery,
-    user: User,
+    user: Optional[User],
     product_service: ProductApplicationService
 ) -> None:
     """Show products in a specific category."""
     try:
+        # Handle case when user context is not available
+        if user is None:
+            await callback_query.message.edit_text(
+                "⚠️ We're experiencing some technical issues. Please try again in a moment."
+            )
+            await callback_query.answer()
+            return
+            
         category_name = callback_query.data.split(":")[-1]
         category = ProductCategory(category_name)
         
@@ -85,11 +113,19 @@ async def show_category_products(
 @inject
 async def show_product_details(
     callback_query: CallbackQuery,
-    user: User,
+    user: Optional[User],
     product_service: ProductApplicationService
 ) -> None:
     """Show detailed product information."""
     try:
+        # Handle case when user context is not available
+        if user is None:
+            await callback_query.message.edit_text(
+                "⚠️ We're experiencing some technical issues. Please try again in a moment."
+            )
+            await callback_query.answer()
+            return
+            
         product_id = callback_query.data.split(":")[-1]
         product = await product_service.get_product_by_id(product_id)
         
@@ -116,11 +152,19 @@ async def show_product_details(
 @inject
 async def initiate_purchase(
     callback_query: CallbackQuery,
-    user: User,
+    user: Optional[User],
     product_service: ProductApplicationService
 ) -> None:
     """Initiate product purchase."""
     try:
+        # Handle case when user context is not available
+        if user is None:
+            await callback_query.message.edit_text(
+                "⚠️ We're experiencing some technical issues. Please try again later."
+            )
+            await callback_query.answer()
+            return
+            
         product_id = callback_query.data.split(":")[-1]
         product = await product_service.get_product_by_id(product_id)
         
@@ -218,12 +262,12 @@ def _create_products_keyboard(products: List[Product], category: str) -> InlineK
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
-def _create_product_details_keyboard(product: Product, user: User) -> InlineKeyboardMarkup:
+def _create_product_details_keyboard(product: Product, user: Optional[User]) -> InlineKeyboardMarkup:
     """Create keyboard for product details."""
     buttons = []
     
     # Buy button (if available and user not blocked)
-    if product.is_available and not user.is_blocked:
+    if product.is_available and user and not user.is_blocked:
         buttons.append([InlineKeyboardButton(
             text=f"💳 Buy for {product.price.to_string()}",
             callback_data=f"product:buy:{product.id}"
@@ -273,7 +317,7 @@ def _create_payment_methods_keyboard(product_id: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
-def _format_product_details(product: Product, user: User) -> str:
+def _format_product_details(product: Product, user: Optional[User]) -> str:
     """Format product details for display."""
     # Basic info
     text = f"""

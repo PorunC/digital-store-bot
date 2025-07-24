@@ -12,6 +12,54 @@ from src.shared.dependency_injection import container
 support_router = Router()
 
 
+@support_router.callback_query(F.data == "support:main")
+async def show_support_main(callback: CallbackQuery):
+    """Show main support menu via callback."""
+    help_text = (
+        f"🆘 **Help & Support**\n\n"
+        f"**Available Commands:**\n"
+        f"• /start - Start the bot\n"
+        f"• /catalog - Browse products\n"
+        f"• /profile - View your profile\n"
+        f"• /orders - View order history\n"
+        f"• /referral - Referral program\n"
+        f"• /trial - Free trial info\n"
+        f"• /help - Show this help\n"
+        f"• /support - Contact support\n\n"
+        f"**How to Use:**\n"
+        f"1️⃣ Browse products with /catalog\n"
+        f"2️⃣ Select a product to purchase\n"
+        f"3️⃣ Choose payment method\n"
+        f"4️⃣ Complete payment\n"
+        f"5️⃣ Enjoy premium access!\n\n"
+        f"**Payment Methods:**\n"
+        f"• ⭐ Telegram Stars\n"
+        f"• ₿ Cryptocurrency (BTC, ETH, USDT)\n\n"
+        f"**Referral Program:**\n"
+        f"• Share your link with friends\n"
+        f"• Earn rewards when they join\n"
+        f"• Get extra days for purchases\n\n"
+        f"**Need Help?**\n"
+        f"Use the buttons below!"
+    )
+
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="🛍️ Browse Catalog", callback_data="catalog:main"),
+            InlineKeyboardButton(text="👤 My Profile", callback_data="profile:main")
+        ],
+        [
+            InlineKeyboardButton(text="👥 Referral Info", callback_data="referral:main"),
+            InlineKeyboardButton(text="🎁 Free Trial", callback_data="trial:start")
+        ],
+        [InlineKeyboardButton(text="📞 Contact Support", callback_data="contact_support")],
+        [InlineKeyboardButton(text="🔙 Back to Main", callback_data="back_to_main")]
+    ])
+
+    await callback.message.edit_text(help_text, reply_markup=keyboard, parse_mode="Markdown")
+    await callback.answer()
+
+
 class SupportStates(StatesGroup):
     waiting_for_support_message = State()
     waiting_for_order_id = State()
@@ -50,12 +98,12 @@ async def show_help(message: Message):
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="🛍️ Browse Catalog", callback_data="show_catalog"),
-            InlineKeyboardButton(text="👤 My Profile", callback_data="profile_refresh")
+            InlineKeyboardButton(text="🛍️ Browse Catalog", callback_data="catalog:main"),
+            InlineKeyboardButton(text="👤 My Profile", callback_data="profile:main")
         ],
         [
-            InlineKeyboardButton(text="👥 Referral Info", callback_data="profile_referrals"),
-            InlineKeyboardButton(text="🎁 Free Trial", callback_data="trial_info")
+            InlineKeyboardButton(text="👥 Referral Info", callback_data="referral:main"),
+            InlineKeyboardButton(text="🎁 Free Trial", callback_data="trial:start")
         ],
         [InlineKeyboardButton(text="📞 Contact Support", callback_data="contact_support")]
     ])
@@ -182,7 +230,7 @@ async def process_support_message(message: Message, state: FSMContext):
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="📞 More Support Options", callback_data="contact_support")],
-        [InlineKeyboardButton(text="👤 My Profile", callback_data="profile_refresh")]
+        [InlineKeyboardButton(text="👤 My Profile", callback_data="profile:main")]
     ])
 
     await message.answer(confirmation_text, reply_markup=keyboard, parse_mode="Markdown")
@@ -376,12 +424,12 @@ async def show_help_callback(callback: CallbackQuery):
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="🛍️ Browse Catalog", callback_data="show_catalog"),
-            InlineKeyboardButton(text="👤 My Profile", callback_data="profile_refresh")
+            InlineKeyboardButton(text="🛍️ Browse Catalog", callback_data="catalog:main"),
+            InlineKeyboardButton(text="👤 My Profile", callback_data="profile:main")
         ],
         [
-            InlineKeyboardButton(text="👥 Referral Info", callback_data="profile_referrals"),
-            InlineKeyboardButton(text="🎁 Free Trial", callback_data="start_trial")
+            InlineKeyboardButton(text="👥 Referral Info", callback_data="referral:main"),
+            InlineKeyboardButton(text="🎁 Free Trial", callback_data="trial:start")
         ],
         [InlineKeyboardButton(text="📞 Contact Support", callback_data="contact_support")]
     ])
@@ -391,18 +439,45 @@ async def show_help_callback(callback: CallbackQuery):
 
 
 # Command aliases for support
-@support_router.message(Command(["contact", "ticket"]))
+@support_router.message(Command("contact"))
 async def contact_alias(message: Message):
-    """Alternative commands for contacting support."""
+    """Alternative command for contacting support."""
+    await contact_support(message)
+
+@support_router.message(Command("ticket"))
+async def ticket_alias(message: Message):
+    """Alternative command for creating support ticket."""
     await contact_support(message)
 
 
 @support_router.message(Command("faq"))
 async def faq_command(message: Message):
     """FAQ command."""
-    await show_faq(CallbackQuery(
-        id="dummy",
-        from_user=message.from_user,
-        chat_instance="dummy",
-        data="show_faq"
-    ))
+    # Create mock callback for reusing the FAQ function
+    class MockCallback:
+        def __init__(self, message):
+            self.message = message
+            self.from_user = message.from_user
+        
+        async def answer(self):
+            pass
+    
+    mock_callback = MockCallback(message)
+    await show_faq(mock_callback)
+
+
+# Add missing callback handlers that were being referenced but not implemented
+@support_router.callback_query(F.data == "orders:list")
+async def orders_list_callback(callback: CallbackQuery):
+    """Redirect to orders list - placeholder implementation."""
+    await callback.message.edit_text(
+        "📦 **Your Orders**\n\n"
+        "Order history functionality is being developed.\n"
+        "For now, please contact support for order information.",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="📞 Contact Support", callback_data="contact_support")],
+            [InlineKeyboardButton(text="🔙 Back", callback_data="support:main")]
+        ]),
+        parse_mode="Markdown"
+    )
+    await callback.answer()

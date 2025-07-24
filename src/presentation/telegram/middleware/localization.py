@@ -201,10 +201,21 @@ ticket-created = ✅ Support ticket created
             user_service: UserApplicationService = container.get(UserApplicationService)
             
             user_id = None
-            if event.message and event.message.from_user:
+            telegram_locale = None
+            
+            # Extract user info from different update types
+            if hasattr(event, 'message') and event.message and hasattr(event.message, 'from_user') and event.message.from_user:
                 user_id = event.message.from_user.id
-            elif event.callback_query:
+                telegram_locale = event.message.from_user.language_code
+            elif hasattr(event, 'callback_query') and event.callback_query and hasattr(event.callback_query, 'from_user') and event.callback_query.from_user:
                 user_id = event.callback_query.from_user.id
+                telegram_locale = event.callback_query.from_user.language_code
+            elif hasattr(event, 'inline_query') and event.inline_query and hasattr(event.inline_query, 'from_user') and event.inline_query.from_user:
+                user_id = event.inline_query.from_user.id
+                telegram_locale = event.inline_query.from_user.language_code
+            elif hasattr(event, 'pre_checkout_query') and event.pre_checkout_query and hasattr(event.pre_checkout_query, 'from_user') and event.pre_checkout_query.from_user:
+                user_id = event.pre_checkout_query.from_user.id
+                telegram_locale = event.pre_checkout_query.from_user.language_code
             
             if user_id:
                 user = await user_service.get_user_by_telegram_id(user_id)
@@ -213,12 +224,6 @@ ticket-created = ✅ Support ticket created
                     return user.profile.language_code
             
             # Fallback to Telegram's language
-            telegram_locale = None
-            if event.message and event.message.from_user:
-                telegram_locale = event.message.from_user.language_code
-            elif event.callback_query:
-                telegram_locale = event.callback_query.from_user.language_code
-            
             if telegram_locale and telegram_locale in self.supported_locales:
                 return telegram_locale
             

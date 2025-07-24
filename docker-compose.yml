@@ -198,7 +198,6 @@ services:
       - DATABASE_URL=postgresql+asyncpg://botuser:${POSTGRES_PASSWORD:-secure_password}@postgres:5432/digital_store_bot
       - REDIS_URL=redis://redis:6379/0
       - SERVICE_TYPE=scheduler
-    command: ["python", "-m", "src.infrastructure.background_tasks.scheduler"]
     volumes:
       - ./data:/app/data:rw
       - ./logs:/app/logs:rw

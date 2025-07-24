@@ -3,7 +3,10 @@
 import functools
 from typing import Any, Callable, TypeVar
 
-from .container import container
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .container import Container
 
 F = TypeVar("F", bound=Callable[..., Any])
 
@@ -13,6 +16,8 @@ def inject(func: F) -> F:
     
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
+        # Import here to avoid circular imports
+        from . import container
         injected_func = container._inject_dependencies(func)
         return injected_func(*args, **kwargs)
     
@@ -26,6 +31,8 @@ def singleton(cls: type) -> type:
     @classmethod
     def get_instance(cls):
         if cls._instance is None:
+            # Import here to avoid circular imports
+            from . import container
             cls._instance = container.resolve(cls)
         return cls._instance
     
@@ -38,6 +45,8 @@ def service(interface: type = None):
     
     def decorator(cls: type) -> type:
         target_interface = interface or cls
+        # Import here to avoid circular imports
+        from . import container
         container.register_transient(target_interface, cls)
         return cls
     

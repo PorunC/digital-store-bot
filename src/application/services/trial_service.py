@@ -14,11 +14,17 @@ class TrialApplicationService:
 
     def __init__(
         self,
-        user_repository: UserRepository,
         unit_of_work: UnitOfWork
     ):
-        self.user_repository = user_repository
         self.unit_of_work = unit_of_work
+        
+    def _get_user_repository(self) -> UserRepository:
+        """Get user repository from unit of work."""
+        from src.infrastructure.database.repositories.user_repository import SqlAlchemyUserRepository
+        if hasattr(self.unit_of_work, 'session') and self.unit_of_work.session:
+            return SqlAlchemyUserRepository(self.unit_of_work.session)
+        else:
+            raise RuntimeError("Unit of work session not available")
 
     async def start_trial(
         self,
@@ -28,7 +34,7 @@ class TrialApplicationService:
     ) -> User:
         """Start a trial for a user."""
         async with self.unit_of_work:
-            user = await self.user_repository.get_by_id(user_id)
+            user = await self._get_user_repository().get_by_id(user_id)
             if not user:
                 raise ValueError(f"User with ID {user_id} not found")
 
@@ -39,7 +45,7 @@ class TrialApplicationService:
 
             user.start_trial(trial_period_days, trial_type)
 
-            user = await self.user_repository.update(user)
+            user = await self._get_user_repository().update(user)
             await self._publish_events(user)
             await self.unit_of_work.commit()
             return user
@@ -52,7 +58,7 @@ class TrialApplicationService:
     ) -> User:
         """Extend an existing trial."""
         async with self.unit_of_work:
-            user = await self.user_repository.get_by_id(user_id)
+            user = await self._get_user_repository().get_by_id(user_id)
             if not user:
                 raise ValueError(f"User with ID {user_id} not found")
 
@@ -74,7 +80,7 @@ class TrialApplicationService:
                 metadata["trial_extensions"] = extensions
                 user.metadata = metadata
 
-            user = await self.user_repository.update(user)
+            user = await self._get_user_repository().update(user)
             await self._publish_events(user)
             await self.unit_of_work.commit()
             return user
@@ -87,7 +93,7 @@ class TrialApplicationService:
     ) -> User:
         """End a user's trial."""
         async with self.unit_of_work:
-            user = await self.user_repository.get_by_id(user_id)
+            user = await self._get_user_repository().get_by_id(user_id)
             if not user:
                 raise ValueError(f"User with ID {user_id} not found")
 
@@ -115,57 +121,62 @@ class TrialApplicationService:
                 metadata["trial_end_reason"] = reason
                 user.metadata = metadata
 
-            user = await self.user_repository.update(user)
+            user = await self._get_user_repository().update(user)
             await self._publish_events(user)
             await self.unit_of_work.commit()
             return user
 
     async def check_trial_eligibility(self, user_id: str) -> dict:
         """Check if a user is eligible for a trial."""
-        user = await self.user_repository.get_by_id(user_id)
-        if not user:
-            return {
-                "eligible": False,
-                "reason": "User not found"
-            }
+        async with self.unit_of_work:
+            user = await self._get_user_repository().get_by_id(user_id)
+            if not user:
+                return {
+                    "eligible": False,
+                    "reason": "User not found"
+                }
 
-        # Check if user is blocked
-        if user.status == UserStatus.BLOCKED:
-            return {
-                "eligible": False,
-                "reason": "User is blocked"
-            }
+            # Check if user is blocked
+            if user.status == UserStatus.BLOCKED:
+                return {
+                    "eligible": False,
+                    "reason": "User is blocked"
+                }
 
-        # Check if user already has an active subscription
-        if user.has_active_subscription():
-            return {
-                "eligible": False,
-                "reason": f"User already has active {user.subscription_type.value} subscription"
-            }
+            # Check if user already has an active subscription
+            if user.has_active_subscription():
+                return {
+                    "eligible": False,
+                    "reason": f"User already has active {user.subscription_type.value} subscription"
+                }
 
-        # Check if user has already used a trial
-        if user.metadata and user.metadata.get("trial_used"):
-            return {
-                "eligible": False,
-                "reason": "User has already used their trial"
-            }
+            # Check if user has already used a trial
+            if user.metadata and user.metadata.get("trial_used"):
+                return {
+                    "eligible": False,
+                    "reason": "User has already used their trial"
+                }
 
-        return {
-            "eligible": True,
-            "reason": None
-        }
+            return {
+                "eligible": True,
+                "reason": None
+            }
 
     async def get_trial_users(self) -> List[User]:
         """Get all users with active trials."""
-        return await self.user_repository.find_trial_users()
+        async with self.unit_of_work:
+            return await self._get_user_repository().find_trial_users()
 
     async def get_expiring_trials(self, days: int = 3) -> List[User]:
         """Get users whose trials expire within specified days."""
-        return await self.user_repository.find_expiring_users(days)
+        async with self.unit_of_work:
+            return await self._get_user_repository().find_expiring_users(days)
 
     async def process_expired_trials(self) -> List[User]:
         """Process users whose trials have expired."""
-        expired_users = await self.user_repository.find_expired_users()
+        async with self.unit_of_work:
+            expired_users = await self._get_user_repository().find_expired_users()
+            
         processed_users = []
 
         for user in expired_users:
@@ -211,7 +222,7 @@ class TrialApplicationService:
                     metadata["last_trial_reminder"] = datetime.utcnow().isoformat()
                     user.metadata = metadata
                     
-                    await self.user_repository.update(user)
+                    await self._get_user_repository().update(user)
                     await self.unit_of_work.commit()
             except Exception as e:
                 print(f"Error updating reminder timestamp for user {user.id}: {e}")
@@ -220,7 +231,8 @@ class TrialApplicationService:
 
     async def get_trial_statistics(self) -> dict:
         """Get trial usage statistics."""
-        all_users = await self.user_repository.get_all()
+        async with self.unit_of_work:
+            all_users = await self._get_user_repository().get_all()
         
         stats = {
             "total_users": len(all_users),
@@ -255,15 +267,15 @@ class TrialApplicationService:
                 else:
                     stats["expired_trials"] += 1
 
-        # Calculate conversion rate
-        if total_trials > 0:
-            stats["trial_conversion_rate"] = (stats["trial_to_premium_conversions"] / total_trials) * 100
+            # Calculate conversion rate
+            if total_trials > 0:
+                stats["trial_conversion_rate"] = (stats["trial_to_premium_conversions"] / total_trials) * 100
 
-        # Calculate average trial duration
-        if trial_durations:
-            stats["average_trial_duration"] = sum(trial_durations) / len(trial_durations)
+            # Calculate average trial duration
+            if trial_durations:
+                stats["average_trial_duration"] = sum(trial_durations) / len(trial_durations)
 
-        return stats
+            return stats
 
     async def bulk_grant_trial_extensions(
         self,

@@ -83,14 +83,16 @@ class UserModel(Base):
     referrals_made: Mapped[List["ReferralModel"]] = relationship(
         "ReferralModel",
         back_populates="referrer",
-        foreign_keys="ReferralModel.referrer_id"
+        foreign_keys="ReferralModel.referrer_id",
+        lazy="dynamic"
     )
     
     referral_received: Mapped[Optional["ReferralModel"]] = relationship(
         "ReferralModel",
         back_populates="referred_user",
         foreign_keys="ReferralModel.referred_user_id",
-        uselist=False
+        uselist=False,
+        lazy="select"
     )
 
     def __repr__(self) -> str:

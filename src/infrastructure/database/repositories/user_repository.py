@@ -5,13 +5,24 @@ from datetime import datetime
 from typing import List, Optional
 
 from sqlalchemy import func, or_, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import selectinload
 
 from src.domain.entities.user import User, UserStatus, SubscriptionType
 from src.domain.repositories.user_repository import UserRepository
 from src.domain.value_objects.user_profile import UserProfile
 from ..models.user import UserModel
+
+
+def _get_enum_value(value) -> Optional[str]:
+    """Safely get enum value or return string if already a string."""
+    if value is None:
+        return None
+    if hasattr(value, 'value'):
+        return value.value
+    if isinstance(value, str):
+        return value
+    return None
 
 
 class SqlAlchemyUserRepository(UserRepository):
@@ -79,9 +90,9 @@ class SqlAlchemyUserRepository(UserRepository):
         user_model.status = entity.status.value
         user_model.is_trial_used = entity.is_trial_used
         user_model.trial_expires_at = entity.trial_expires_at
-        user_model.trial_type = entity.trial_type.value if entity.trial_type else None
+        user_model.trial_type = _get_enum_value(entity.trial_type)
         user_model.subscription_expires_at = entity.subscription_expires_at
-        user_model.subscription_type = entity.subscription_type.value if entity.subscription_type else None
+        user_model.subscription_type = _get_enum_value(entity.subscription_type)
         user_model.total_subscription_days = entity.total_subscription_days
         user_model.referrer_id = entity.referrer_id
         user_model.invite_source = entity.invite_source
@@ -260,9 +271,9 @@ class SqlAlchemyUserRepository(UserRepository):
             status=entity.status.value,
             is_trial_used=entity.is_trial_used,
             trial_expires_at=entity.trial_expires_at,
-            trial_type=entity.trial_type.value if entity.trial_type else None,
+            trial_type=_get_enum_value(entity.trial_type),
             subscription_expires_at=entity.subscription_expires_at,
-            subscription_type=entity.subscription_type.value if entity.subscription_type else None,
+            subscription_type=_get_enum_value(entity.subscription_type),
             total_subscription_days=entity.total_subscription_days,
             referrer_id=entity.referrer_id,
             invite_source=entity.invite_source,
