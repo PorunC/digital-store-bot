@@ -143,11 +143,11 @@ class PaymentApplicationService:
             if not order:
                 raise ValueError(f"Order with ID {order_id} not found")
 
-        if not order.payment_id or not order.payment_method:
-            return {
-                "status": "no_payment",
-                "message": "No payment information found for this order"
-            }
+            if not order.payment_id or not order.payment_method:
+                return {
+                    "status": "no_payment",
+                    "message": "No payment information found for this order"
+                }
 
             # Get appropriate payment gateway
             gateway = self.payment_gateway_factory.get_gateway(order.payment_method)
@@ -253,11 +253,13 @@ class PaymentApplicationService:
                     if order.status in [OrderStatus.PAID, OrderStatus.COMPLETED]:
                         payment_method_stats[method]["revenue"] += order.amount.amount
 
+            supported_methods = await self.get_supported_payment_methods()
+            
             return {
                 "revenue": revenue_stats,
                 "orders": order_stats,
                 "payment_methods": payment_method_stats,
-                "supported_methods": [method for method in self.get_supported_payment_methods()]
+                "supported_methods": [method for method in supported_methods]
             }
 
     async def _publish_events(self, order: Order) -> None:

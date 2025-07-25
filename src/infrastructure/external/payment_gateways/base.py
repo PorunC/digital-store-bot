@@ -100,9 +100,25 @@ class PaymentGateway(ABC):
         """Cancel a payment (optional implementation)."""
         return False
 
-    async def refund_payment(self, payment_id: str, amount: Optional[float] = None) -> bool:
+    async def refund_payment(self, payment_id: str, amount: Optional[float] = None, reason: Optional[str] = None) -> Dict:
         """Refund a payment (optional implementation)."""
-        return False
+        return {"success": False, "message": "Refunds not supported by this gateway"}
+
+    async def validate_webhook(self, webhook_data: dict, signature: Optional[str] = None) -> bool:
+        """Validate webhook (optional implementation)."""
+        return True
+
+    async def extract_payment_info(self, webhook_data: dict) -> Dict:
+        """Extract payment info from webhook (optional implementation)."""
+        return {}
+
+    async def get_config(self) -> Dict:
+        """Get gateway configuration (optional implementation)."""
+        return {"enabled": self.is_enabled}
+
+    async def validate_amount(self, amount: float, currency: str) -> Dict:
+        """Validate payment amount (optional implementation)."""
+        return {"valid": True}
 
     def validate_webhook_signature(self, data: dict, signature: str) -> bool:
         """Validate webhook signature (optional implementation)."""

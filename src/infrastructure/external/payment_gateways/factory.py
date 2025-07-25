@@ -129,6 +129,13 @@ class PaymentGatewayFactory:
         self._initialize_gateways()
         logger.info("Payment gateways reloaded")
 
+    def get_supported_methods(self) -> List[PaymentMethod]:
+        """Get list of supported payment methods."""
+        return [
+            method for method, gateway in self._gateways.items()
+            if gateway.is_available()
+        ]
+
     def get_gateway_status(self) -> Dict[str, dict]:
         """Get status of all gateways."""
         status = {}
@@ -137,7 +144,7 @@ class PaymentGatewayFactory:
             status[method.value] = {
                 "name": gateway.gateway_name,
                 "available": gateway.is_available(),
-                "enabled": gateway.is_enabled,
+                "enabled": gateway.is_available(),
                 "supported_currencies": gateway.get_supported_currencies()
             }
         
