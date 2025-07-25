@@ -210,7 +210,7 @@ class ProductApplicationService:
             if not product:
                 return False
 
-            return product.is_available() and product.has_sufficient_stock(quantity)
+            return product.is_available and (product.stock == -1 or product.stock >= quantity)
 
     async def reserve_stock(self, product_id: str, quantity: int = 1) -> Product:
         """Reserve product stock for an order."""
@@ -219,7 +219,7 @@ class ProductApplicationService:
             if not product:
                 raise ValueError(f"Product with ID {product_id} not found")
 
-            if not product.is_available():
+            if not product.is_available:
                 raise ValueError(f"Product {product.name} is not available")
 
             if not product.has_sufficient_stock(quantity):

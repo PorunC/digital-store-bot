@@ -88,10 +88,10 @@ class OrderApplicationService:
             if not product:
                 raise ValueError(f"Product with ID {product_id} not found")
 
-            if not product.is_available():
+            if not product.is_available:
                 raise ValueError(f"Product {product.name} is not available")
 
-            if not product.has_sufficient_stock(quantity):
+            if product.stock != -1 and product.stock < quantity:
                 raise ValueError(f"Insufficient stock for product {product.name}")
 
             # Calculate total amount
