@@ -22,4 +22,4 @@ async def get_session_factory(
     database_manager = Provide[ApplicationContainer.database_manager]
 ):
     """Get session factory for manual session management."""
-    return database_manager.create_session_factory()
+    return database_manager.get_session_factory()

@@ -156,7 +156,7 @@ class ApplicationContainer(containers.DeclarativeContainer):
     
     database_session_factory = providers.Resource(
         providers.Callable(
-            lambda db_manager: db_manager.create_session_factory(),
+            lambda db_manager: db_manager.get_session_factory(),
             db_manager=database_manager
         )
     )
