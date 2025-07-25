@@ -27,6 +27,10 @@ class TelegramBot:
     async def start(self) -> None:
         """Start the Telegram bot."""
         try:
+            # Set bot instance in payment gateway factory
+            payment_factory = self.container.payment_gateway_factory()
+            payment_factory.set_bot_instance(self.bot)
+            
             # Setup middleware and handlers
             await self._setup_middleware()
             await self._setup_handlers()

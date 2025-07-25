@@ -38,10 +38,10 @@ def _create_notification_service(bot_token, admin_ids):
     service.notifiers[NotificationChannel.TELEGRAM] = TelegramNotifier(bot_token, admin_ids)
     return service
 
-def _create_payment_gateway_factory(settings):
+def _create_payment_gateway_factory(settings, bot=None):
     """Factory for PaymentGatewayFactory."""
     from ..infrastructure.external.payment_gateways.factory import PaymentGatewayFactory
-    return PaymentGatewayFactory(settings)
+    return PaymentGatewayFactory(settings, bot)
 
 def _create_analytics_service(settings):
     """Factory for AnalyticsService."""

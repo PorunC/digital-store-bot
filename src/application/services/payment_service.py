@@ -54,6 +54,8 @@ class PaymentApplicationService:
 
             # Get appropriate payment gateway
             gateway = self.payment_gateway_factory.get_gateway(payment_method)
+            if not gateway:
+                raise ValueError(f"Payment gateway for {payment_method} is not available")
             
             # Create payment data
             payment_data = PaymentData(
@@ -73,10 +75,11 @@ class PaymentApplicationService:
 
             if result.success:
                 # Update order with payment information
-                order.set_payment_info(
+                order.set_payment_details(
+                    payment_method=payment_method,
+                    payment_gateway=str(payment_method),
                     payment_id=result.payment_id,
                     external_payment_id=result.external_payment_id,
-                    payment_gateway=payment_method,
                     payment_url=result.payment_url
                 )
                 order.payment_method = payment_method

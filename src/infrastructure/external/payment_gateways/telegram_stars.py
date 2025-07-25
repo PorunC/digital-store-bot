@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class TelegramStarsGateway(PaymentGateway):
     """Telegram Stars payment gateway."""
 
-    def __init__(self, config: dict, bot: Bot):
+    def __init__(self, config: dict, bot: Optional[Bot] = None):
         super().__init__(config)
         self.bot = bot
 
@@ -30,6 +30,12 @@ class TelegramStarsGateway(PaymentGateway):
 
     async def create_payment(self, payment_data: PaymentData) -> PaymentResult:
         """Create a Telegram Stars payment."""
+        if not self.bot:
+            return PaymentResult(
+                success=False,
+                error_message="Telegram bot instance not available"
+            )
+            
         try:
             # Convert amount to Telegram Stars (1 Star = 1 cent USD approximately)
             # For different currencies, we need conversion logic

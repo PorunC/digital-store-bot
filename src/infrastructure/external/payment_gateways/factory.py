@@ -26,7 +26,7 @@ class PaymentGatewayFactory:
         """Initialize available payment gateways."""
         try:
             # Initialize Telegram Stars gateway
-            if self.settings.payments.telegram_stars.enabled and self.bot:
+            if self.settings.payments.telegram_stars.enabled:
                 telegram_config = {
                     "enabled": self.settings.payments.telegram_stars.enabled
                 }
@@ -53,6 +53,21 @@ class PaymentGatewayFactory:
 
         except Exception as e:
             logger.error(f"Error initializing payment gateways: {e}")
+
+    def set_bot_instance(self, bot) -> None:
+        """Set bot instance for Telegram Stars gateway."""
+        self.bot = bot
+        # Re-initialize Telegram Stars gateway with bot
+        if (self.settings.payments.telegram_stars.enabled and 
+            PaymentMethod.TELEGRAM_STARS in self._gateways):
+            telegram_config = {
+                "enabled": self.settings.payments.telegram_stars.enabled
+            }
+            self._gateways[PaymentMethod.TELEGRAM_STARS] = TelegramStarsGateway(
+                config=telegram_config,
+                bot=self.bot
+            )
+            logger.info("Telegram Stars gateway updated with bot instance")
 
     def get_gateway(self, payment_method: PaymentMethod) -> Optional[PaymentGateway]:
         """Get payment gateway by method."""
