@@ -22,20 +22,27 @@ from src.application.services import (
 )
 from src.infrastructure.background_tasks.task_scheduler import TaskScheduler
 from src.infrastructure.notifications.notification_service import NotificationService
+from src.infrastructure.configuration.settings import get_settings
 from src.core.containers import container
 
 # Security for admin panel
 security = HTTPBasic()
 
-# Admin credentials (should be loaded from config)
-ADMIN_USERNAME = "admin"
-ADMIN_PASSWORD = "admin123"  # Change in production!
-
 
 def verify_admin(credentials: HTTPBasicCredentials = Depends(security)):
-    """Verify admin credentials."""
-    is_correct_username = secrets.compare_digest(credentials.username, ADMIN_USERNAME)
-    is_correct_password = secrets.compare_digest(credentials.password, ADMIN_PASSWORD)
+    """Verify admin credentials using configuration."""
+    settings = get_settings()
+    
+    # Check if admin panel is enabled
+    if not settings.admin.enabled:
+        raise HTTPException(
+            status_code=503,
+            detail="Admin panel is disabled",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    
+    is_correct_username = secrets.compare_digest(credentials.username, settings.admin.username)
+    is_correct_password = secrets.compare_digest(credentials.password, settings.admin.password)
     
     if not (is_correct_username and is_correct_password):
         raise HTTPException(

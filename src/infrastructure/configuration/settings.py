@@ -161,6 +161,15 @@ class SecurityConfig(BaseModel):
     max_requests_per_minute: int = 60
 
 
+class AdminConfig(BaseModel):
+    """Admin panel configuration."""
+    
+    username: str = Field(default="admin", description="Admin username")
+    password: str = Field(default="change_me_in_production", description="Admin password") 
+    enabled: bool = True
+    session_timeout_hours: int = 8
+
+
 class ExternalConfig(BaseModel):
     """External services configuration."""
     
@@ -190,6 +199,7 @@ class Settings(BaseSettings):
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     i18n: I18nConfig = Field(default_factory=I18nConfig)
     security: SecurityConfig
+    admin: AdminConfig = Field(default_factory=AdminConfig)
     external: ExternalConfig = Field(default_factory=ExternalConfig)
 
     @classmethod

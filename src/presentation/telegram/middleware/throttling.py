@@ -21,19 +21,24 @@ class ThrottlingMiddleware(BaseMiddleware):
         self,
         default_rate: float = 1.0,  # requests per second
         default_burst: int = 3,     # burst allowance
-        admin_exempt: bool = True   # exempt admins from throttling
+        admin_exempt: bool = True,  # exempt admins from throttling
+        admin_ids: set = None       # admin user IDs from config
     ):
         self.default_rate = default_rate
         self.default_burst = default_burst
         self.admin_exempt = admin_exempt
         
-        # Rate limiting storage
+        # Rate limiting storage with TTL cleanup
         self.user_tokens: Dict[int, float] = defaultdict(lambda: default_burst)
         self.user_last_update: Dict[int, float] = defaultdict(time.time)
         self.user_violations: Dict[int, deque] = defaultdict(lambda: deque(maxlen=10))
         
-        # Admin user IDs (should be loaded from config)
-        self.admin_ids = {123456789}  # Configure admin IDs
+        # Admin user IDs from configuration
+        self.admin_ids = admin_ids or set()
+        
+        # Cleanup task for memory management
+        self._last_cleanup = time.time()
+        self._cleanup_interval = 3600  # 1 hour
         
         # Rate limit configurations for different operations
         self.rate_configs = {
@@ -71,8 +76,38 @@ class ThrottlingMiddleware(BaseMiddleware):
         # Update user token bucket
         self._update_tokens(user_id, rate_config)
         
+        # Periodic cleanup of old data
+        self._cleanup_old_data()
+        
         # Continue to handler
         return await handler(event, data)
+    
+    def _cleanup_old_data(self) -> None:
+        """Clean up old user data to prevent memory leaks."""
+        current_time = time.time()
+        
+        # Only cleanup once per interval
+        if current_time - self._last_cleanup < self._cleanup_interval:
+            return
+        
+        cutoff_time = current_time - self._cleanup_interval
+        users_to_remove = []
+        
+        # Find inactive users
+        for user_id, last_update in self.user_last_update.items():
+            if last_update < cutoff_time:
+                users_to_remove.append(user_id)
+        
+        # Remove inactive users
+        for user_id in users_to_remove:
+            self.user_tokens.pop(user_id, None)
+            self.user_last_update.pop(user_id, None)
+            self.user_violations.pop(user_id, None)
+        
+        self._last_cleanup = current_time
+        
+        if users_to_remove:
+            logger.info(f"Cleaned up throttling data for {len(users_to_remove)} inactive users")
     
     def _get_user_id(self, event: Update) -> int:
         """Extract user ID from update."""

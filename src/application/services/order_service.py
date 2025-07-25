@@ -119,9 +119,21 @@ class OrderApplicationService:
             # Set expiration time (30 minutes for payment)
             order.set_expiration(datetime.utcnow() + timedelta(minutes=30))
 
-            # Reserve stock
-            product.reduce_stock(quantity)
-            await self._get_product_repository().update(product)
+            # Reserve stock with optimistic locking
+            try:
+                product.decrease_stock(quantity)
+                await self._get_product_repository().update(product)
+            except ValueError as e:
+                # Stock validation failed
+                raise ValueError(f"Cannot create order: {e}")
+            except Exception as e:
+                # Potential concurrency conflict - reload and retry once
+                fresh_product = await self._get_product_repository().get_by_id(product_id)
+                if fresh_product and fresh_product.stock >= quantity:
+                    fresh_product.decrease_stock(quantity)
+                    await self._get_product_repository().update(fresh_product)
+                else:
+                    raise ValueError(f"Insufficient stock for product {product.name}")
 
             order = await self._get_order_repository().add(order)
             await self._publish_events(order)
@@ -169,10 +181,11 @@ class OrderApplicationService:
             if not order:
                 raise ValueError(f"Order with ID {order_id} not found")
 
-            order.set_payment_info(
+            order.set_payment_details(
+                payment_method=order.payment_method,
+                payment_gateway=payment_gateway or "unknown",
                 payment_id=payment_id,
                 external_payment_id=external_payment_id,
-                payment_gateway=payment_gateway,
                 payment_url=payment_url
             )
 
@@ -212,7 +225,7 @@ class OrderApplicationService:
             if order.status != OrderStatus.PAID:
                 raise ValueError(f"Cannot mark order {order_id} as completed - must be paid first")
 
-            order.mark_as_completed(notes)
+            order.complete(notes)
 
             # Update user subscription if applicable
             if not order.is_trial:
@@ -247,7 +260,7 @@ class OrderApplicationService:
             if order.status == OrderStatus.PENDING:
                 product = await self._get_product_repository().get_by_id(str(order.product_id))
                 if product:
-                    product.add_stock(order.quantity)
+                    product.increase_stock(order.quantity)
                     await self._get_product_repository().update(product)
 
             order.cancel(reason)
@@ -270,7 +283,7 @@ class OrderApplicationService:
             # Release reserved stock
             product = await self._get_product_repository().get_by_id(str(order.product_id))
             if product:
-                product.add_stock(order.quantity)
+                product.increase_stock(order.quantity)
                 await self._get_product_repository().update(product)
 
             order.expire()
@@ -281,19 +294,57 @@ class OrderApplicationService:
             return order
 
     async def process_expired_orders(self) -> List[Order]:
-        """Process all expired orders."""
+        """Process all expired orders with proper transaction handling."""
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        # First, get expired orders in a separate transaction
         async with self.unit_of_work:
             expired_orders = await self._get_order_repository().find_expired()
             
+        if not expired_orders:
+            return []
+            
         processed_orders = []
-        for order in expired_orders:
-            try:
-                processed_order = await self.expire_order(str(order.id))
-                processed_orders.append(processed_order)
-            except Exception as e:
-                # Log error but continue processing other orders
-                print(f"Error processing expired order {order.id}: {e}")
-
+        failed_orders = []
+        
+        # Process orders in batches to avoid long-running transactions
+        batch_size = 10
+        for i in range(0, len(expired_orders), batch_size):
+            batch = expired_orders[i:i + batch_size]
+            
+            async with self.unit_of_work:
+                for order in batch:
+                    try:
+                        # Check if order is still expired (avoid race conditions)
+                        current_order = await self._get_order_repository().get_by_id(str(order.id))
+                        if not current_order or not current_order.is_expired:
+                            continue
+                            
+                        # Release stock if order is still pending
+                        if current_order.status == OrderStatus.PENDING:
+                            product = await self._get_product_repository().get_by_id(str(current_order.product_id))
+                            if product:
+                                product.increase_stock(current_order.quantity)
+                                await self._get_product_repository().update(product)
+                        
+                        # Mark order as expired
+                        current_order.expire()
+                        updated_order = await self._get_order_repository().update(current_order)
+                        await self._publish_events(updated_order)
+                        processed_orders.append(updated_order)
+                        
+                    except Exception as e:
+                        failed_orders.append((order.id, str(e)))
+                        logger.error(f"Error processing expired order {order.id}: {e}", exc_info=True)
+                        
+                # Commit the batch
+                await self.unit_of_work.commit()
+        
+        if failed_orders:
+            logger.warning(f"Failed to process {len(failed_orders)} expired orders: {failed_orders}")
+            
+        logger.info(f"Successfully processed {len(processed_orders)} expired orders")
         return processed_orders
 
     async def add_order_notes(self, order_id: str, notes: str) -> Order:
@@ -307,7 +358,7 @@ class OrderApplicationService:
             separator = "\n---\n" if existing_notes else ""
             new_notes = f"{existing_notes}{separator}{datetime.utcnow().isoformat()}: {notes}"
             
-            order.add_notes(new_notes)
+            order.add_note(notes)
 
             order = await self._get_order_repository().update(order)
             await self.unit_of_work.commit()

@@ -12,11 +12,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Manual setup
 poetry install
 cp config/settings.example.yml config/settings.yml
+cp .env.example .env                          # Copy environment template
+cp data/products.example.json data/products.json  # Copy products template
 poetry run pre-commit install
 
 # Run application
 poetry run python -m src.main                # Production mode
 poetry run python -m src.main --dev          # Development with auto-reload
+
+# Run specific services (Docker)
+docker compose up -d postgres redis          # Start dependencies only
+python -m src.main --service=bot             # Start bot service
+python -m src.main --service=admin           # Start admin panel
+python -m src.main --service=scheduler       # Start background scheduler
 ```
 
 ### Testing
@@ -65,16 +73,26 @@ poetry run python -m src.infrastructure.database.migrations.migration_manager do
 # Build and start all services
 docker compose up -d
 
+# Start with monitoring stack (Prometheus, Grafana, Loki)
+docker compose --profile monitoring up -d
+
 # View logs
 docker compose logs -f bot
 docker compose logs -f admin
+docker compose logs -f scheduler
 
-# Production deployment with monitoring
-docker compose --profile monitoring up -d
+# Start specific services
+docker compose up -d postgres redis          # Dependencies only
+docker compose up -d traefik                 # Reverse proxy with SSL
+
+# Health checks and troubleshooting
+docker compose ps                            # Check service status
+docker compose exec bot python -c "print('Health check')"
 
 # Stop and cleanup
 docker compose down
-docker compose build --no-cache  # Rebuild containers
+docker compose down -v                       # Remove volumes too
+docker compose build --no-cache              # Rebuild containers
 ```
 
 ## Project Architecture
@@ -135,9 +153,18 @@ Configuration uses **modular YAML** with environment variable overrides:
 
 ### Setup Process
 1. Copy base configuration: `cp config/settings.example.yml config/settings.yml`
-2. Edit required fields: `bot.token`, `bot.admins` (admin user IDs)
-3. Configure payment gateways: `payments.cryptomus.api_key` and `merchant_id`
-4. Set database URL for production: `database.url`
+2. Copy environment template: `cp .env.example .env`
+3. Edit required fields: `bot.token`, `bot.admins` (admin user IDs)
+4. Configure payment gateways: `payments.cryptomus.api_key` and `merchant_id`
+5. Set database URL for production: `database.url`
+
+### Environment Variables
+Environment variables override YAML settings (precedence: ENV → YAML → defaults):
+- `BOT_TOKEN`: Telegram bot token (required)
+- `DATABASE_URL`: Production database connection string
+- `REDIS_URL`: Redis connection for caching and events
+- `CRYPTOMUS_API_KEY`, `CRYPTOMUS_MERCHANT_ID`: Payment gateway credentials
+- `DOMAIN`: Production domain for SSL and webhooks
 
 ### Key Configuration Sections
 - `bot`: Telegram bot token and admin settings
@@ -152,6 +179,12 @@ Products are loaded from `data/products.json` (copy from `products.example.json`
 - **Delivery Types**: license_key, account_info, download_link, api_access, manual
 - **Stock Management**: Automatic stock tracking with configurable thresholds
 - **Dynamic Templates**: Key generation with placeholders for user data
+
+### Localization
+Multi-language support using Fluent format in `locales/` directory:
+- Default language: English (`locales/en/`)
+- Add new languages by creating corresponding locale directories
+- Translation keys use dot notation (e.g., `shop.product.price`)
 
 ## Dependency Injection Usage
 

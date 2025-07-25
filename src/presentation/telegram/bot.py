@@ -62,16 +62,19 @@ class TelegramBot:
             self.dispatcher.message.middleware(LoggingMiddleware())
             self.dispatcher.callback_query.middleware(LoggingMiddleware())
             
-            # Throttling with custom settings
+            # Throttling with custom settings and admin IDs
+            admin_ids = set(self.settings.bot.admins)
             self.dispatcher.message.middleware(ThrottlingMiddleware(
                 default_rate=self.settings.security.max_requests_per_minute / 60.0,
                 default_burst=3,
-                admin_exempt=True
+                admin_exempt=True,
+                admin_ids=admin_ids
             ))
             self.dispatcher.callback_query.middleware(ThrottlingMiddleware(
                 default_rate=self.settings.security.max_requests_per_minute / 60.0,
                 default_burst=5,
-                admin_exempt=True
+                admin_exempt=True,
+                admin_ids=admin_ids
             ))
             
             # Database middleware with manager

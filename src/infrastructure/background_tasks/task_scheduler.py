@@ -48,6 +48,7 @@ class TaskScheduler:
         self.tasks: Dict[str, ScheduledTask] = {}
         self.running = False
         self._scheduler_task: Optional[asyncio.Task] = None
+        self._running_tasks: Dict[str, asyncio.Task] = {}  # Track running tasks
         
     def add_task(
         self,
@@ -112,6 +113,18 @@ class TaskScheduler:
         
         self.running = False
         
+        # Cancel all running tasks
+        for task_name, task in self._running_tasks.items():
+            if not task.done():
+                task.cancel()
+                logger.info(f"Cancelled running task: {task_name}")
+        
+        # Wait for tasks to complete or be cancelled
+        if self._running_tasks:
+            await asyncio.gather(*self._running_tasks.values(), return_exceptions=True)
+            self._running_tasks.clear()
+        
+        # Cancel scheduler task
         if self._scheduler_task and not self._scheduler_task.done():
             self._scheduler_task.cancel()
             try:
@@ -145,8 +158,36 @@ class TaskScheduler:
                 continue
             
             if task.next_run and current_time >= task.next_run:
-                # Run task in background
-                asyncio.create_task(self._run_task(task))
+                # Check if task is already running
+                if task_name in self._running_tasks:
+                    running_task = self._running_tasks[task_name]
+                    if not running_task.done():
+                        continue  # Task still running, skip this iteration
+                    else:
+                        # Clean up completed task
+                        del self._running_tasks[task_name]
+                
+                # Run task in background and track it
+                task_obj = asyncio.create_task(self._run_task(task))
+                self._running_tasks[task_name] = task_obj
+                
+                # Add done callback for cleanup
+                task_obj.add_done_callback(lambda t, name=task_name: self._cleanup_task(name, t))
+    
+    def _cleanup_task(self, task_name: str, task: asyncio.Task) -> None:
+        """Clean up completed task."""
+        try:
+            # Remove from running tasks
+            self._running_tasks.pop(task_name, None)
+            
+            # Check for exceptions
+            if task.done() and not task.cancelled():
+                try:
+                    task.result()  # This will raise exception if task failed
+                except Exception as e:
+                    logger.error(f"Background task {task_name} failed: {e}", exc_info=True)
+        except Exception as e:
+            logger.error(f"Error cleaning up task {task_name}: {e}", exc_info=True)
     
     async def _run_task(self, task: ScheduledTask) -> None:
         """Run a single task."""
@@ -234,12 +275,21 @@ class TaskScheduler:
         failed_count = sum(1 for task in self.tasks.values() if task.status == TaskStatus.FAILED)
         running_count = sum(1 for task in self.tasks.values() if task.status == TaskStatus.RUNNING)
         
+        # Clean up completed background tasks
+        active_background_tasks = {
+            name: task for name, task in self._running_tasks.items() 
+            if not task.done()
+        }
+        self._running_tasks.clear()
+        self._running_tasks.update(active_background_tasks)
+        
         return {
             "running": self.running,
             "total_tasks": len(self.tasks),
             "enabled_tasks": enabled_count,
             "failed_tasks": failed_count,
             "running_tasks": running_count,
+            "background_tasks": len(self._running_tasks),
             "uptime": datetime.utcnow().isoformat() if self.running else None
         }
 

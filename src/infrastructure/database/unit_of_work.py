@@ -55,7 +55,8 @@ class SqlAlchemyUnitOfWork(UnitOfWork):
 
     async def commit(self) -> None:
         """Commit the current transaction."""
-        if self._transaction:
+        if self.session:
+            # Commit through session, transaction context manager will handle cleanup
             await self.session.commit()
 
     async def rollback(self) -> None:

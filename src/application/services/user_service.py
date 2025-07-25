@@ -6,6 +6,8 @@ from src.domain.entities.user import User, SubscriptionType
 from src.domain.repositories.user_repository import UserRepository
 from src.domain.repositories.base import UnitOfWork
 from src.shared.events import event_bus
+from src.shared.utils.validation import DataValidator
+from src.shared.utils.logging import StructuredLogger
 
 
 class UserApplicationService:
@@ -18,6 +20,7 @@ class UserApplicationService:
     ):
         self.unit_of_work = unit_of_work
         self._user_repository_factory = user_repository_factory
+        self.logger = StructuredLogger(__name__)
         
     def _get_user_repository(self) -> UserRepository:
         """Get user repository using factory or fallback to direct creation."""
@@ -42,9 +45,9 @@ class UserApplicationService:
     ) -> User:
         """Register a new user."""
         # Sanitize input data to prevent validation errors
-        first_name = self._sanitize_name(first_name)
-        username = self._sanitize_username(username)
-        language_code = self._sanitize_language_code(language_code)
+        first_name = DataValidator.sanitize_name(first_name)
+        username = DataValidator.sanitize_username(username)
+        language_code = DataValidator.sanitize_language_code(language_code)
         
         async with self.unit_of_work:
             # Check if user already exists
@@ -166,11 +169,11 @@ class UserApplicationService:
         """Update user profile."""
         # Sanitize input data to prevent validation errors
         if first_name is not None:
-            first_name = self._sanitize_name(first_name)
+            first_name = DataValidator.sanitize_name(first_name)
         if username is not None:
-            username = self._sanitize_username(username)
+            username = DataValidator.sanitize_username(username)
         if language_code is not None:
-            language_code = self._sanitize_language_code(language_code)
+            language_code = DataValidator.sanitize_language_code(language_code)
             
         async with self.unit_of_work:
             user = await self._get_user_repository().get_by_id(user_id)
@@ -257,28 +260,3 @@ class UserApplicationService:
             await event_bus.publish(event)
         user.clear_domain_events()
 
-    def _sanitize_name(self, name: str) -> str:
-        """Sanitize name input to prevent validation errors."""
-        if not name:
-            return "User"
-        name = name.strip()
-        if len(name) > 64:
-            name = name[:61] + "..."
-        return name
-
-    def _sanitize_username(self, username: Optional[str]) -> Optional[str]:
-        """Sanitize username input to prevent validation errors."""
-        if not username:
-            return None
-        username = username.strip()
-        if not username:
-            return None
-        if len(username) > 32:
-            username = username[:29] + "..."
-        return username
-
-    def _sanitize_language_code(self, language_code: str) -> str:
-        """Sanitize language code input."""
-        if not language_code or len(language_code) < 2:
-            return "en"
-        return language_code[:5].lower()

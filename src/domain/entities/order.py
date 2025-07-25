@@ -21,6 +21,7 @@ from .base import AggregateRoot
 class OrderStatus(str, Enum):
     """Order status enumeration."""
     PENDING = "pending"
+    PROCESSING = "processing"  # Payment initiated but not confirmed
     PAID = "paid"
     COMPLETED = "completed"
     CANCELLED = "cancelled"
@@ -133,9 +134,18 @@ class Order(AggregateRoot):
         
         self.mark_updated()
 
+    def mark_as_processing(self) -> None:
+        """Mark order as processing (payment initiated)."""
+        if self.status != OrderStatus.PENDING:
+            raise ValueError(f"Cannot mark order as processing from status: {self.status}")
+            
+        self.status = OrderStatus.PROCESSING
+        self.mark_updated()
+
     def mark_as_paid(self, payment_id: Optional[str] = None) -> None:
         """Mark order as paid."""
-        if self.status not in [OrderStatus.PENDING]:
+        # Allow transition from PENDING or PROCESSING status (for gateway callbacks)
+        if self.status not in [OrderStatus.PENDING, OrderStatus.PROCESSING]:
             raise ValueError(f"Cannot mark order as paid from status: {self.status}")
             
         self.status = OrderStatus.PAID
@@ -221,6 +231,15 @@ class Order(AggregateRoot):
         )
         self.add_domain_event(event)
 
+    def expire(self) -> None:
+        """Mark order as expired."""
+        if self.status != OrderStatus.PENDING:
+            raise ValueError(f"Cannot expire order with status: {self.status}")
+            
+        self.status = OrderStatus.FAILED  # Use FAILED status for expired orders
+        self.notes = (self.notes or "") + f"\nOrder expired at: {datetime.utcnow().isoformat()}"
+        self.mark_updated()
+
     def fail(self, reason: Optional[str] = None) -> None:
         """Mark order as failed."""
         self.status = OrderStatus.FAILED
@@ -260,6 +279,14 @@ class Order(AggregateRoot):
         """Get total order amount."""
         total = self.amount * self.quantity
         return total
+
+    def set_expiration(self, expires_at: datetime) -> None:
+        """Set order expiration time."""
+        if self.status != OrderStatus.PENDING:
+            raise ValueError(f"Cannot set expiration for order with status: {self.status}")
+            
+        self.expires_at = expires_at
+        self.mark_updated()
 
     def add_note(self, note: str) -> None:
         """Add a note to the order."""
