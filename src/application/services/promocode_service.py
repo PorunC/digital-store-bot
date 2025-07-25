@@ -148,7 +148,7 @@ class PromocodeApplicationService:
 
                 # Check if user can use trial extension codes
                 if promocode.promocode_type == PromocodeType.TRIAL_EXTENSION:
-                    if user.has_active_subscription():
+                    if user.has_active_subscription:
                         return {
                             "valid": False,
                             "error": "Cannot use trial extension with active subscription",
@@ -184,7 +184,7 @@ class PromocodeApplicationService:
                 # Extend user's trial/subscription
                 user.extend_subscription(
                     promocode.duration_days,
-                    SubscriptionType.TRIAL if not user.has_active_subscription() else user.subscription_type
+                    SubscriptionType.TRIAL if not user.has_active_subscription else user.subscription_type
                 )
                 result["effect"] = f"Extended subscription by {promocode.duration_days} days"
                 

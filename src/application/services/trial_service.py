@@ -150,7 +150,7 @@ class TrialApplicationService:
                 }
 
             # Check if user already has an active subscription
-            if user.has_active_subscription():
+            if user.has_active_subscription:
                 return {
                     "eligible": False,
                     "reason": f"User already has active {user.subscription_type} subscription"
