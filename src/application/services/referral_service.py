@@ -16,12 +16,20 @@ class ReferralApplicationService:
 
     def __init__(
         self,
-        unit_of_work: UnitOfWork
+        unit_of_work: UnitOfWork,
+        referral_repository_factory = None,
+        user_repository_factory = None
     ):
         self.unit_of_work = unit_of_work
+        self._referral_repository_factory = referral_repository_factory
+        self._user_repository_factory = user_repository_factory
         
     def _get_referral_repository(self) -> ReferralRepository:
-        """Get referral repository from unit of work."""
+        """Get referral repository using factory or fallback to direct creation."""
+        if self._referral_repository_factory and hasattr(self.unit_of_work, 'session') and self.unit_of_work.session:
+            return self._referral_repository_factory(self.unit_of_work.session)
+            
+        # Fallback to anti-pattern during transition period
         from src.infrastructure.database.repositories.referral_repository import SqlAlchemyReferralRepository
         if hasattr(self.unit_of_work, 'session') and self.unit_of_work.session:
             return SqlAlchemyReferralRepository(self.unit_of_work.session)
@@ -29,7 +37,11 @@ class ReferralApplicationService:
             raise RuntimeError("Unit of work session not available")
             
     def _get_user_repository(self) -> UserRepository:
-        """Get user repository from unit of work."""
+        """Get user repository using factory or fallback to direct creation."""
+        if self._user_repository_factory and hasattr(self.unit_of_work, 'session') and self.unit_of_work.session:
+            return self._user_repository_factory(self.unit_of_work.session)
+            
+        # Fallback to anti-pattern during transition period
         from src.infrastructure.database.repositories.user_repository import SqlAlchemyUserRepository
         if hasattr(self.unit_of_work, 'session') and self.unit_of_work.session:
             return SqlAlchemyUserRepository(self.unit_of_work.session)

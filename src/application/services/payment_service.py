@@ -17,13 +17,19 @@ class PaymentApplicationService:
     def __init__(
         self,
         payment_gateway_factory: PaymentGatewayFactory,
-        unit_of_work: UnitOfWork
+        unit_of_work: UnitOfWork,
+        order_repository_factory = None
     ):
         self.payment_gateway_factory = payment_gateway_factory
         self.unit_of_work = unit_of_work
+        self._order_repository_factory = order_repository_factory
         
     def _get_order_repository(self) -> OrderRepository:
-        """Get order repository from unit of work."""
+        """Get order repository using factory or fallback to direct creation."""
+        if self._order_repository_factory and hasattr(self.unit_of_work, 'session') and self.unit_of_work.session:
+            return self._order_repository_factory(self.unit_of_work.session)
+            
+        # Fallback to anti-pattern during transition period
         from src.infrastructure.database.repositories.order_repository import SqlAlchemyOrderRepository
         if hasattr(self.unit_of_work, 'session') and self.unit_of_work.session:
             return SqlAlchemyOrderRepository(self.unit_of_work.session)

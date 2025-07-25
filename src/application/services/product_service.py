@@ -15,12 +15,18 @@ class ProductApplicationService:
 
     def __init__(
         self,
-        unit_of_work: UnitOfWork
+        unit_of_work: UnitOfWork,
+        product_repository_factory = None
     ):
         self.unit_of_work = unit_of_work
+        self._product_repository_factory = product_repository_factory
         
     def _get_product_repository(self) -> ProductRepository:
-        """Get product repository from unit of work."""
+        """Get product repository using factory or fallback to direct creation."""
+        if self._product_repository_factory and hasattr(self.unit_of_work, 'session') and self.unit_of_work.session:
+            return self._product_repository_factory(self.unit_of_work.session)
+            
+        # Fallback to anti-pattern during transition period
         from src.infrastructure.database.repositories.product_repository import SqlAlchemyProductRepository
         if hasattr(self.unit_of_work, 'session') and self.unit_of_work.session:
             return SqlAlchemyProductRepository(self.unit_of_work.session)

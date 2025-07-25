@@ -16,12 +16,20 @@ class PromocodeApplicationService:
 
     def __init__(
         self,
-        unit_of_work: UnitOfWork
+        unit_of_work: UnitOfWork,
+        promocode_repository_factory = None,
+        user_repository_factory = None
     ):
         self.unit_of_work = unit_of_work
+        self._promocode_repository_factory = promocode_repository_factory
+        self._user_repository_factory = user_repository_factory
         
     def _get_promocode_repository(self) -> PromocodeRepository:
-        """Get promocode repository from unit of work."""
+        """Get promocode repository using factory or fallback to direct creation."""
+        if self._promocode_repository_factory and hasattr(self.unit_of_work, 'session') and self.unit_of_work.session:
+            return self._promocode_repository_factory(self.unit_of_work.session)
+            
+        # Fallback to anti-pattern during transition period
         from src.infrastructure.database.repositories.promocode_repository import SqlAlchemyPromocodeRepository
         if hasattr(self.unit_of_work, 'session') and self.unit_of_work.session:
             return SqlAlchemyPromocodeRepository(self.unit_of_work.session)
@@ -29,7 +37,11 @@ class PromocodeApplicationService:
             raise RuntimeError("Unit of work session not available")
             
     def _get_user_repository(self) -> UserRepository:
-        """Get user repository from unit of work."""
+        """Get user repository using factory or fallback to direct creation."""
+        if self._user_repository_factory and hasattr(self.unit_of_work, 'session') and self.unit_of_work.session:
+            return self._user_repository_factory(self.unit_of_work.session)
+            
+        # Fallback to anti-pattern during transition period
         from src.infrastructure.database.repositories.user_repository import SqlAlchemyUserRepository
         if hasattr(self.unit_of_work, 'session') and self.unit_of_work.session:
             return SqlAlchemyUserRepository(self.unit_of_work.session)

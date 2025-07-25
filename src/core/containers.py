@@ -48,45 +48,93 @@ def _create_analytics_service(settings):
     from ..infrastructure.external.analytics.analytics_service import AnalyticsService
     return AnalyticsService(settings)
 
-def _create_user_service(unit_of_work):
+def _create_user_repository_factory(database_session_factory):
+    """Factory for user repository factory."""
+    from ..infrastructure.database.repositories.user_repository import SqlAlchemyUserRepository
+    
+    def create_user_repository(session):
+        return SqlAlchemyUserRepository(session)
+    
+    return create_user_repository
+
+def _create_order_repository_factory(database_session_factory):
+    """Factory for order repository factory."""
+    from ..infrastructure.database.repositories.order_repository import SqlAlchemyOrderRepository
+    
+    def create_order_repository(session):
+        return SqlAlchemyOrderRepository(session)
+    
+    return create_order_repository
+
+def _create_product_repository_factory(database_session_factory):
+    """Factory for product repository factory."""
+    from ..infrastructure.database.repositories.product_repository import SqlAlchemyProductRepository
+    
+    def create_product_repository(session):
+        return SqlAlchemyProductRepository(session)
+    
+    return create_product_repository
+
+def _create_promocode_repository_factory(database_session_factory):
+    """Factory for promocode repository factory."""
+    from ..infrastructure.database.repositories.promocode_repository import SqlAlchemyPromocodeRepository
+    
+    def create_promocode_repository(session):
+        return SqlAlchemyPromocodeRepository(session)
+    
+    return create_promocode_repository
+
+def _create_referral_repository_factory(database_session_factory):
+    """Factory for referral repository factory."""
+    from ..infrastructure.database.repositories.referral_repository import SqlAlchemyReferralRepository
+    
+    def create_referral_repository(session):
+        return SqlAlchemyReferralRepository(session)
+    
+    return create_referral_repository
+
+def _create_user_service(unit_of_work, user_repository_factory):
     """Factory for UserApplicationService."""
     from ..application.services.user_service import UserApplicationService
-    return UserApplicationService(unit_of_work)
+    return UserApplicationService(unit_of_work, user_repository_factory)
 
-def _create_product_service(unit_of_work):
+def _create_product_service(unit_of_work, product_repository_factory):
     """Factory for ProductApplicationService."""
     from ..application.services.product_service import ProductApplicationService
-    return ProductApplicationService(unit_of_work)
+    return ProductApplicationService(unit_of_work, product_repository_factory)
 
-def _create_order_service(unit_of_work):
+def _create_order_service(unit_of_work, order_repository_factory, product_repository_factory, user_repository_factory):
     """Factory for OrderApplicationService."""
     from ..application.services.order_service import OrderApplicationService
-    return OrderApplicationService(unit_of_work)
+    return OrderApplicationService(unit_of_work, order_repository_factory, product_repository_factory, user_repository_factory)
 
-def _create_payment_service(gateway_factory, unit_of_work):
+def _create_payment_service(gateway_factory, unit_of_work, order_repository_factory):
     """Factory for PaymentApplicationService."""
     from ..application.services.payment_service import PaymentApplicationService
-    return PaymentApplicationService(gateway_factory, unit_of_work)
+    return PaymentApplicationService(gateway_factory, unit_of_work, order_repository_factory)
 
-def _create_referral_service(unit_of_work):
+def _create_referral_service(unit_of_work, referral_repository_factory, user_repository_factory):
     """Factory for ReferralApplicationService."""
     from ..application.services.referral_service import ReferralApplicationService
-    return ReferralApplicationService(unit_of_work)
+    return ReferralApplicationService(unit_of_work, referral_repository_factory, user_repository_factory)
 
-def _create_promocode_service(unit_of_work):
+def _create_promocode_service(unit_of_work, promocode_repository_factory, user_repository_factory):
     """Factory for PromocodeApplicationService."""
     from ..application.services.promocode_service import PromocodeApplicationService
-    return PromocodeApplicationService(unit_of_work)
+    return PromocodeApplicationService(unit_of_work, promocode_repository_factory, user_repository_factory)
 
-def _create_trial_service(unit_of_work):
+def _create_trial_service(unit_of_work, user_repository_factory):
     """Factory for TrialApplicationService."""
     from ..application.services.trial_service import TrialApplicationService
-    return TrialApplicationService(unit_of_work)
+    return TrialApplicationService(unit_of_work, user_repository_factory)
 
 def _create_product_loader_service(unit_of_work, settings):
     """Factory for ProductLoaderService."""
     from ..application.services.product_loader_service import ProductLoaderService
     return ProductLoaderService(unit_of_work, settings)
+
+# Repository factory functions - repositories need to be created per session
+# These will be injected directly into services rather than as singletons
 
 
 class ApplicationContainer(containers.DeclarativeContainer):
@@ -159,25 +207,66 @@ class ApplicationContainer(containers.DeclarativeContainer):
         )
     )
     
+    # Repository Factories
+    user_repository_factory = providers.Singleton(
+        providers.Callable(
+            _create_user_repository_factory,
+            database_session_factory=database_session_factory
+        )
+    )
+    
+    order_repository_factory = providers.Singleton(
+        providers.Callable(
+            _create_order_repository_factory,
+            database_session_factory=database_session_factory
+        )
+    )
+    
+    product_repository_factory = providers.Singleton(
+        providers.Callable(
+            _create_product_repository_factory,
+            database_session_factory=database_session_factory
+        )
+    )
+    
+    promocode_repository_factory = providers.Singleton(
+        providers.Callable(
+            _create_promocode_repository_factory,
+            database_session_factory=database_session_factory
+        )
+    )
+    
+    referral_repository_factory = providers.Singleton(
+        providers.Callable(
+            _create_referral_repository_factory,
+            database_session_factory=database_session_factory
+        )
+    )
+    
     # Application Services
     user_service = providers.Factory(
         providers.Callable(
             _create_user_service,
-            unit_of_work=unit_of_work
+            unit_of_work=unit_of_work,
+            user_repository_factory=user_repository_factory
         )
     )
     
     product_service = providers.Factory(
         providers.Callable(
             _create_product_service,
-            unit_of_work=unit_of_work
+            unit_of_work=unit_of_work,
+            product_repository_factory=product_repository_factory
         )
     )
     
     order_service = providers.Factory(
         providers.Callable(
             _create_order_service,
-            unit_of_work=unit_of_work
+            unit_of_work=unit_of_work,
+            order_repository_factory=order_repository_factory,
+            product_repository_factory=product_repository_factory,
+            user_repository_factory=user_repository_factory
         )
     )
     
@@ -185,28 +274,34 @@ class ApplicationContainer(containers.DeclarativeContainer):
         providers.Callable(
             _create_payment_service,
             gateway_factory=payment_gateway_factory,
-            unit_of_work=unit_of_work
+            unit_of_work=unit_of_work,
+            order_repository_factory=order_repository_factory
         )
     )
     
     referral_service = providers.Factory(
         providers.Callable(
             _create_referral_service,
-            unit_of_work=unit_of_work
+            unit_of_work=unit_of_work,
+            referral_repository_factory=referral_repository_factory,
+            user_repository_factory=user_repository_factory
         )
     )
     
     promocode_service = providers.Factory(
         providers.Callable(
             _create_promocode_service,
-            unit_of_work=unit_of_work
+            unit_of_work=unit_of_work,
+            promocode_repository_factory=promocode_repository_factory,
+            user_repository_factory=user_repository_factory
         )
     )
     
     trial_service = providers.Factory(
         providers.Callable(
             _create_trial_service,
-            unit_of_work=unit_of_work
+            unit_of_work=unit_of_work,
+            user_repository_factory=user_repository_factory
         )
     )
     

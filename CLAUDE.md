@@ -84,7 +84,7 @@ This project implements **Domain-Driven Design (DDD)** with **Clean Architecture
 ### Core Architectural Patterns
 
 - **Domain-Driven Design**: Rich domain entities with business logic encapsulation
-- **Dependency Injection**: Custom DI container with `@inject` decorator for automatic resolution
+- **Dependency Injection**: dependency-injector framework with type-safe container configuration
 - **Event-Driven Architecture**: Domain events with async event bus for loose coupling
 - **CQRS Pattern**: Separate command and query handlers for clear responsibility separation
 - **Repository Pattern**: Abstract data access with Unit of Work pattern
@@ -114,15 +114,16 @@ src/
 │   ├── telegram/             # Aiogram bot handlers and middleware
 │   ├── web/                  # FastAPI admin panel
 │   └── webhooks/             # Payment callback processing
-└── shared/                   # Cross-cutting concerns
-    ├── dependency_injection/ # DI container and decorators
-    ├── events/               # Event bus and base event classes
-    └── exceptions/           # Custom exception types
+├── shared/                   # Cross-cutting concerns
+│   ├── events/               # Event bus and base event classes
+│   └── exceptions/           # Custom exception types
+└── core/                     # Core infrastructure
+    └── containers.py         # dependency-injector container configuration
 ```
 
 ### Key Components
 
-- **DI Container** (`src/shared/dependency_injection/container.py`): Type-based dependency resolution with singleton/factory patterns
+- **Application Container** (`src/core/containers.py`): dependency-injector container with type-safe service registration
 - **Event Bus** (`src/shared/events/bus.py`): Async in-memory event dispatcher for service decoupling
 - **Database Manager** (`src/infrastructure/database/manager.py`): Connection pooling and session management
 - **Payment Gateway Factory** (`src/infrastructure/external/payment_gateways/factory.py`): Pluggable payment processing system
@@ -154,26 +155,40 @@ Products are loaded from `data/products.json` (copy from `products.example.json`
 
 ## Dependency Injection Usage
 
-The DI system enables constructor injection with automatic type resolution:
+The project uses **dependency-injector** framework for enterprise-grade dependency injection:
 
 ```python
-from src.shared.dependency_injection import container, inject
+from dependency_injector.wiring import inject, Provide
+from src.core.containers import ApplicationContainer
 
-# Service registration (done in main.py)
-container.register_factory(UserRepository, create_user_repository)
+# Service registration (done in src/core/containers.py)
+class ApplicationContainer(containers.DeclarativeContainer):
+    user_service = providers.Factory(...)
 
-# Automatic injection in handlers/services
+# Explicit injection with type safety
 @inject
-async def my_handler(user_service: UserApplicationService) -> None:
+async def my_handler(
+    user_service: UserApplicationService = Provide[ApplicationContainer.user_service]
+) -> None:
     user = await user_service.get_user_by_id("123")
     
 # Works in class constructors too
 @inject
 class OrderService:
-    def __init__(self, uow: UnitOfWork, payment_factory: PaymentGatewayFactory):
+    def __init__(
+        self,
+        uow: UnitOfWork = Provide[ApplicationContainer.unit_of_work],
+        payment_factory: PaymentGatewayFactory = Provide[ApplicationContainer.payment_factory]
+    ):
         self.uow = uow
         self.payment_factory = payment_factory
 ```
+
+### Key Features
+- **Type Safety**: Full IDE support and static type checking
+- **Factory Pattern**: Lazy initialization using factory functions
+- **Container Configuration**: Centralized dependency configuration in `src/core/containers.py`
+- **Wiring**: Automatic dependency resolution for registered modules
 
 ## Event System Usage
 
@@ -204,7 +219,7 @@ class WelcomeMessageHandler:
 4. **Application Layer**: Implement commands/queries in `src/application/`
 5. **Infrastructure**: Implement repositories and external adapters
 6. **Presentation**: Add Telegram handlers in `src/presentation/telegram/handlers/`
-7. **Register Dependencies**: Update DI registrations in `src/main.py`
+7. **Register Dependencies**: Update DI registrations in `src/core/containers.py`
 
 ### Database Schema Changes
 1. Modify SQLAlchemy models in `src/infrastructure/database/models/`
@@ -235,7 +250,7 @@ class WelcomeMessageHandler:
 
 ## Common Development Issues
 
-- **Missing Dependencies**: Check DI container registrations in `src/main.py:setup_dependencies()`
+- **Missing Dependencies**: Check DI container registrations in `src/core/containers.py`
 - **Event Handlers Not Triggering**: Verify handler registration with `@event_handler` decorator
 - **Migration Conflicts**: Always create migrations on feature branches, resolve before merging
 - **Configuration Loading**: Validate settings precedence (YAML → ENV vars → defaults)
