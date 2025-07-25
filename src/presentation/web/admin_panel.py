@@ -183,7 +183,7 @@ def create_admin_app() -> FastAPI:
         
         payments_data = {
             "stats": payment_stats,
-            "supported_methods": [method.value for method in supported_methods],
+            "supported_methods": [method for method in supported_methods],
             "admin_user": admin
         }
         
@@ -411,7 +411,7 @@ DASHBOARD_TEMPLATE = """
                 <td>{{ order.id[:8] }}...</td>
                 <td>{{ order.product_name }}</td>
                 <td>${{ order.amount.amount }}</td>
-                <td>{{ order.status.value }}</td>
+                <td>{{ order.status }}</td>
                 <td>{{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
             </tr>
             {% endfor %}

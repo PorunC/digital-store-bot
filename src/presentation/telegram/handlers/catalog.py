@@ -95,7 +95,7 @@ async def show_category_products(
             await callback_query.answer("No products found in this category")
             return
             
-        text = f"🏷️ <b>{category.value.title()} Products</b>\n\n"
+        text = f"🏷️ <b>{category.title()} Products</b>\n\n"
         keyboard = _create_products_keyboard(products, category_name)
         
         await callback_query.message.edit_text(
@@ -283,7 +283,7 @@ def _create_product_details_keyboard(product: Product, user: Optional[User]) -> 
     buttons.append([
         InlineKeyboardButton(
             text="🔙 Back",
-            callback_data=f"catalog:category:{product.category.value}"
+            callback_data=f"catalog:category:{product.category}"
         ),
         InlineKeyboardButton(
             text="🏠 Menu",
@@ -325,7 +325,7 @@ def _format_product_details(product: Product, user: Optional[User]) -> str:
 📦 <b>{product.name}</b>
 
 💰 <b>Price:</b> {product.price.to_string()}
-🏷️ <b>Category:</b> {product.category.value.title()}
+🏷️ <b>Category:</b> {product.category.title()}
 """
     
     # Duration info
@@ -357,7 +357,7 @@ def _format_product_details(product: Product, user: Optional[User]) -> str:
         "api": "🔌 API Access"
     }
     
-    delivery_text = delivery_types.get(product.delivery_type.value, "📦 Digital Delivery")
+    delivery_text = delivery_types.get(product.delivery_type, "📦 Digital Delivery")
     text += f"🚀 <b>Delivery:</b> {delivery_text}"
     
     return text

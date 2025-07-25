@@ -318,14 +318,14 @@ async def process_order_id(
             "completed": "✅",
             "cancelled": "❌",
             "expired": "⏰"
-        }.get(order.status.value, "❓")
+        }.get(order.status, "❓")
 
         status_text = (
             f"🔍 **Order Status**\n\n"
             f"🆔 **Order ID:** `{order.id}`\n"
             f"📦 **Product:** {order.product_name}\n"
             f"💰 **Amount:** ${order.amount.amount:.2f} {order.amount.currency.upper()}\n"
-            f"📊 **Status:** {status_emoji} {order.status.value.title()}\n"
+            f"📊 **Status:** {status_emoji} {order.status.title()}\n"
             f"📅 **Created:** {order.created_at.strftime('%Y-%m-%d %H:%M')}\n"
         )
 
@@ -335,10 +335,10 @@ async def process_order_id(
         if order.completed_at:
             status_text += f"✅ **Completed:** {order.completed_at.strftime('%Y-%m-%d %H:%M')}\n"
         
-        if order.expires_at and order.status.value == "pending":
+        if order.expires_at and order.status == "pending":
             status_text += f"⏰ **Expires:** {order.expires_at.strftime('%Y-%m-%d %H:%M')}\n"
 
-        if order.payment_url and order.status.value in ["pending", "processing"]:
+        if order.payment_url and order.status in ["pending", "processing"]:
             status_text += f"\n🔗 **Payment Link:** Available"
 
         if order.notes:
@@ -346,7 +346,7 @@ async def process_order_id(
 
         keyboard_buttons = []
         
-        if order.status.value in ["pending", "processing"] and order.payment_url:
+        if order.status in ["pending", "processing"] and order.payment_url:
             keyboard_buttons.append([
                 InlineKeyboardButton(text="💳 Complete Payment", url=order.payment_url)
             ])

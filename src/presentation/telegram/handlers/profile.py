@@ -347,12 +347,12 @@ async def show_orders(
                 "completed": "✅",
                 "cancelled": "❌",
                 "expired": "⏰"
-            }.get(order.status.value, "❓")
+            }.get(order.status, "❓")
             
             orders_text += (
                 f"{status_emoji} **{order.product_name}**\n"
                 f"💰 ${order.amount.amount:.2f} | 📅 {order.created_at.strftime('%Y-%m-%d')}\n"
-                f"Status: {order.status.value.title()}\n\n"
+                f"Status: {order.status.title()}\n\n"
             )
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -561,7 +561,7 @@ def _format_subscription_info(user) -> str:
     }.get(user.subscription_type, "❓")
     
     return (
-        f"💎 **Subscription: {emoji} {user.subscription_type.value.title()}**\n"
+        f"💎 **Subscription: {emoji} {user.subscription_type.title()}**\n"
         f"⏰ Expires in: {expires_in_days} days\n"
         f"📅 Expires on: {user.subscription_expires_at.strftime('%Y-%m-%d')}"
     )

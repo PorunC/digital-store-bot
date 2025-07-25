@@ -385,7 +385,7 @@ async def manage_promocodes(
         promocodes_text += "🎟️ **Active Codes:**\n"
         for code in active_codes[:5]:
             usage = f"{code.current_uses}/{code.max_uses}" if code.max_uses != -1 else f"{code.current_uses}/∞"
-            promocodes_text += f"• `{code.code}` ({code.promocode_type.value}) - {usage}\n"
+            promocodes_text += f"• `{code.code}` ({code.promocode_type}) - {usage}\n"
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [
@@ -517,7 +517,7 @@ async def create_promocode_final(
         await message.answer(
             f"✅ **Promocode Created!**\n\n"
             f"🎟️ Code: `{promocode.code}`\n"
-            f"📋 Type: {promocode.promocode_type.value}\n"
+            f"📋 Type: {promocode.promocode_type}\n"
             f"⏰ Duration: {promocode.duration_days} days\n"
             f"🔢 Max uses: {promocode.max_uses}\n"
             f"🆔 ID: `{promocode.id}`",

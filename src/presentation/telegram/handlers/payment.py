@@ -347,7 +347,7 @@ async def process_pre_checkout(
             await pre_checkout_query.answer(ok=False, error_message="Order not found")
             return
         
-        if order.status.value not in ["pending", "processing"]:
+        if order.status not in ["pending", "processing"]:
             await pre_checkout_query.answer(ok=False, error_message="Order is not payable")
             return
         
@@ -446,13 +446,13 @@ async def show_orders_command(
             "completed": "✅",
             "cancelled": "❌",
             "expired": "⏰"
-        }.get(order.status.value, "❓")
+        }.get(order.status, "❓")
         
         orders_text += (
             f"{i}. {status_emoji} **{order.product_name}**\n"
             f"   💰 ${order.amount.amount:.2f} | "
             f"📅 {order.created_at.strftime('%Y-%m-%d')}\n"
-            f"   Status: {order.status.value.title()}\n\n"
+            f"   Status: {order.status.title()}\n\n"
         )
 
     if len(orders) > 10:

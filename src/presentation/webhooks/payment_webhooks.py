@@ -129,14 +129,14 @@ async def process_payment_webhook(
         
         # Validate webhook signature
         if not gateway.validate_webhook_signature(webhook_data, signature):
-            logger.warning(f"Invalid webhook signature for {payment_method.value}")
+            logger.warning(f"Invalid webhook signature for {payment_method}")
             return None
         
         # Process webhook through gateway
         webhook_result = await gateway.handle_webhook(webhook_data)
         
         if not webhook_result:
-            logger.warning(f"Gateway returned no result for webhook: {payment_method.value}")
+            logger.warning(f"Gateway returned no result for webhook: {payment_method}")
             return None
         
         # Get order
@@ -146,7 +146,7 @@ async def process_payment_webhook(
             return None
         
         # Update order based on webhook status
-        if webhook_result.status.value in ["completed", "paid"]:
+        if webhook_result.status in ["completed", "paid"]:
             # Mark as paid first
             paid_order = await order_service.mark_as_paid(
                 order_id=str(order.id),
@@ -156,7 +156,7 @@ async def process_payment_webhook(
             # Then mark as completed
             completed_order = await order_service.mark_as_completed(
                 order_id=str(order.id),
-                notes=f"Payment confirmed via {payment_method.value} webhook"
+                notes=f"Payment confirmed via {payment_method} webhook"
             )
             
             # Send success notification
@@ -165,11 +165,11 @@ async def process_payment_webhook(
             logger.info(f"Order {order.id} completed via webhook")
             return str(completed_order.id)
             
-        elif webhook_result.status.value in ["failed", "cancelled"]:
+        elif webhook_result.status in ["failed", "cancelled"]:
             # Cancel the order
             cancelled_order = await order_service.cancel_order(
                 order_id=str(order.id),
-                reason=f"Payment {webhook_result.status.value} via {payment_method.value}"
+                reason=f"Payment {webhook_result.status} via {payment_method}"
             )
             
             # Send failure notification
@@ -179,7 +179,7 @@ async def process_payment_webhook(
             return str(cancelled_order.id)
         
         else:
-            logger.info(f"Webhook received for order {order.id} with status {webhook_result.status.value}")
+            logger.info(f"Webhook received for order {order.id} with status {webhook_result.status}")
             return str(order.id)
             
     except Exception as e:

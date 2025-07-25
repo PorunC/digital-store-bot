@@ -257,13 +257,13 @@ def list(status: Optional[str], limit: int):
                     "COMPLETED": "✅",
                     "CANCELLED": "❌",
                     "FAILED": "🔴"
-                }.get(order.status.value, "❓")
+                }.get(order.status, "❓")
                 
                 click.echo(f"{status_emoji} {order.id[:8]}... - ${order.amount.amount}")
                 click.echo(f"   User: {order.user_id}")
                 click.echo(f"   Product: {order.product_name}")
                 click.echo(f"   Date: {order.created_at}")
-                click.echo(f"   Status: {order.status.value}")
+                click.echo(f"   Status: {order.status}")
                 click.echo()
             
         except Exception as e:
