@@ -45,7 +45,7 @@ async def initiate_purchase(
         await callback.answer("❌ Product not found.", show_alert=True)
         return
 
-    if not product.is_available():
+    if not product.is_available:
         await callback.answer("❌ Product is not available.", show_alert=True)
         return
 
