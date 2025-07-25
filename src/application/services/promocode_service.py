@@ -116,7 +116,7 @@ class PromocodeApplicationService:
             if promocode.status != PromocodeStatus.ACTIVE:
                 return {
                     "valid": False,
-                    "error": f"Promocode is {promocode.status.value}",
+                    "error": f"Promocode is {promocode.status}",
                     "promocode": promocode
                 }
 

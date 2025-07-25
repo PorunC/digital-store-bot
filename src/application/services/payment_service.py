@@ -49,7 +49,7 @@ class PaymentApplicationService:
             if not order:
                 raise ValueError(f"Order with ID {order_id} not found")
 
-            if order.status.value not in ["pending", "processing"]:
+            if order.status not in ["pending", "processing"]:
                 raise ValueError(f"Cannot create payment for order {order_id} - invalid status: {order.status}")
 
             # Get appropriate payment gateway
@@ -76,7 +76,7 @@ class PaymentApplicationService:
                 order.set_payment_info(
                     payment_id=result.payment_id,
                     external_payment_id=result.external_payment_id,
-                    payment_gateway=payment_method.value,
+                    payment_gateway=payment_method,
                     payment_url=result.payment_url
                 )
                 order.payment_method = payment_method
@@ -177,7 +177,7 @@ class PaymentApplicationService:
             if not order:
                 raise ValueError(f"Order with ID {order_id} not found")
 
-            if order.status.value != "paid":
+            if order.status != "paid":
                 raise ValueError(f"Cannot refund order {order_id} - not paid")
 
             if not order.payment_id or not order.payment_method:
@@ -238,7 +238,7 @@ class PaymentApplicationService:
             
             for order in all_orders:
                 if order.payment_method:
-                    method = order.payment_method.value
+                    method = order.payment_method
                     if method not in payment_method_stats:
                         payment_method_stats[method] = {
                             "count": 0,
@@ -247,14 +247,14 @@ class PaymentApplicationService:
                         }
                     
                     payment_method_stats[method]["count"] += 1
-                    if order.status.value in ["paid", "completed"]:
+                    if order.status in ["paid", "completed"]:
                         payment_method_stats[method]["revenue"] += order.amount.amount
 
             return {
                 "revenue": revenue_stats,
                 "orders": order_stats,
                 "payment_methods": payment_method_stats,
-                "supported_methods": [method.value for method in self.get_supported_payment_methods()]
+                "supported_methods": [method for method in self.get_supported_payment_methods()]
             }
 
     async def _publish_events(self, order: Order) -> None:
