@@ -1,39 +1,45 @@
-# Digital Store Bot v2 Configuration
+# Security-focused configuration example
+# Copy this to settings.yml and configure with your actual values
 
-# Bot Configuration
+# Bot configuration
 bot:
-  token: "YOUR_BOT_TOKEN"
-  domain: "yourdomain.com"
+  token: "YOUR_BOT_TOKEN_HERE"  # Required: Telegram bot token
+  domain: "your-domain.com"     # Optional: Your domain for webhooks
   port: 8080
-  admins:
-    - 123456789
-  dev_id: 123456789
-  support_id: 123456789
+  admins: [123456789, 987654321]  # Admin user IDs
+  dev_id: 123456789             # Developer user ID
+  support_id: 123456789         # Support user ID
 
-# Database Configuration
+# Security configuration - IMPORTANT!
+security:
+  secret_key: "CHANGE_THIS_SECRET_KEY_IN_PRODUCTION"  # Generate a strong secret key
+  token_expire_hours: 24
+  max_requests_per_minute: 60
+
+# External services
+external:
+  webhook_url: null  # Will be auto-generated if domain is set
+  webhook_secret: "YOUR_WEBHOOK_SECRET"  # Optional webhook secret
+  letsencrypt_email: "admin@your-domain.com"
+
+# Database configuration
 database:
-  driver: "sqlite+aiosqlite"
-  host: null
-  port: null
+  driver: "sqlite+aiosqlite"    # Use PostgreSQL in production
   name: "digital_store"
-  username: null
-  password: null
-  echo: false
+  echo: false                   # Set to false in production
   pool_size: 5
   max_overflow: 10
 
-# Redis Configuration
+# Redis configuration
 redis:
-  host: "digitalstore-redis"        # Updated for Docker deployment
+  host: "digitalstore-redis"
   port: 6379
   db: 0
-  username: null
-  password: null
 
-# Shop Configuration
+# Shop configuration
 shop:
   name: "Digital Store"
-  email: "support@digitalstore.com"
+  email: "support@your-domain.com"
   currency: "USD"
   trial:
     enabled: true
@@ -44,58 +50,46 @@ shop:
     enabled: true
     level_one_reward_days: 10
     level_two_reward_days: 3
-    level_one_reward_rate: 50       # Percentage reward for level 1 referrals
-    level_two_reward_rate: 5        # Percentage reward for level 2 referrals  
-    bonus_devices_count: 1          # Number of bonus devices for referrals
+    level_one_reward_rate: 50
+    level_two_reward_rate: 5
+    bonus_devices_count: 1
 
-# Product Configuration
+# Product configuration
 products:
-  catalog_file: "data/products.json"  # Updated to match 3xui-shop path and format
+  catalog_file: "data/products.json"
   default_category: "digital"
   delivery_timeout_seconds: 3600
-  categories:
-    - software
-    - gaming
-    - subscription
-    - digital
-    - education
+  categories: ["software", "gaming", "subscription", "digital", "education"]
 
-# Payment Configuration
+# Payment configuration
 payments:
   telegram_stars:
     enabled: true
   cryptomus:
-    enabled: true                   # Updated to match 3xui-shop default (enabled)
-    api_key: "YOUR_CRYPTOMUS_API_KEY"
-    merchant_id: "YOUR_CRYPTOMUS_MERCHANT_ID"
+    enabled: true
+    api_key: "YOUR_CRYPTOMUS_API_KEY"      # Required for Cryptomus
+    merchant_id: "YOUR_CRYPTOMUS_MERCHANT_ID"  # Required for Cryptomus
 
-# Logging Configuration
+# Logging configuration
 logging:
-  level: "DEBUG"                    # Updated to match 3xui-shop default (better for development)
+  level: "INFO"  # Use INFO or WARNING in production
   format: "%(asctime)s | %(name)s | %(levelname)s | %(message)s"
   file_enabled: true
   file_path: "logs/app.log"
   file_max_bytes: 10485760  # 10MB
   file_backup_count: 5
-  archive_format: "zip"             # Log archive format (zip/gz)
+  archive_format: "zip"
 
 # Internationalization
 i18n:
   default_locale: "en"
   locales_dir: "locales"
-  supported_locales:
-    - en
-    - ru
-    - zh
+  supported_locales: ["en", "ru", "zh"]
 
-# Security
-security:
-  secret_key: "your-super-secret-key-change-this-in-production"  # 🔴 MUST CHANGE: Generate random 32+ char string
-  token_expire_hours: 24
-  max_requests_per_minute: 60
+# Admin panel configuration - IMPORTANT!
+admin:
+  username: "admin"                    # Change this username
+  password: "CHANGE_THIS_PASSWORD"     # Use a strong password
+  enabled: true
+  session_timeout_hours: 8
 
-# External Services
-external:
-  webhook_url: null                    # Auto-generated: https://misaka.guru/webhook/bot7511294016
-  webhook_secret: "your-webhook-secret-key"  # 🔴 CHANGE: Random string for webhook validation
-  letsencrypt_email: "example@email.com"     # From 3xui-shop .env

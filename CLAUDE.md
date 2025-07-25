@@ -4,290 +4,265 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Commands
 
-### Setup and Installation
-```bash
-# Full automated setup (recommended)
-./scripts/setup.sh
+### Direct Development
+- `poetry run python -m src.main` - Run the bot directly
+- `poetry run python -m src.main --dev` - Run in development mode
+- `poetry run python -m src.presentation.web.admin_panel` - Run admin panel
+- `poetry run python -m src.infrastructure.background_tasks.scheduler_main` - Run background scheduler
 
-# Manual setup
-poetry install
-cp config/settings.example.yml config/settings.yml
-cp .env.example .env                          # Copy environment template
-cp data/products.example.json data/products.json  # Copy products template
-poetry run pre-commit install
+### Docker Development and Deployment
+- `docker compose up -d` - Start all services (bot, postgres, redis, traefik)
+- `docker compose up -d --profile monitoring` - Start with monitoring (prometheus, grafana)
+- `docker compose up -d --profile logging` - Start with logging (loki, promtail)
+- `docker compose down` - Stop all services
+- `docker compose logs -f bot` - View bot logs
+- `docker compose build` - Build containers
 
-# Run application
-poetry run python -m src.main                # Production mode
-poetry run python -m src.main --dev          # Development with auto-reload
+### Quick Docker Management Scripts
+- `./scripts/quick_restart.sh` - Quick restart all services except Traefik
+- `./scripts/restart_without_traefik.sh --app` - Restart application services
+- `./scripts/docker_manager.sh zero-downtime --app` - Zero-downtime deployment
+- `./scripts/docker_manager.sh status` - Check service status
 
-# Run specific services (Docker)
-docker compose up -d postgres redis          # Start dependencies only
-python -m src.main --service=bot             # Start bot service
-python -m src.main --service=admin           # Start admin panel
-python -m src.main --service=scheduler       # Start background scheduler
-```
+### Database Management
+- `poetry run python -m src.infrastructure.database.migrations.migration_manager create "description"` - Create migration
+- `poetry run python -m src.infrastructure.database.migrations.migration_manager upgrade` - Apply migrations
+- `poetry run python -m src.infrastructure.database.migrations.migration_manager downgrade` - Rollback migrations
 
-### Testing
-```bash
-# Run all tests with coverage
-poetry run pytest
+### Code Quality and Testing
+- `poetry run pytest` - Run all tests
+- `poetry run pytest -m unit` - Run unit tests only
+- `poetry run pytest -m integration` - Run integration tests only
+- `poetry run pytest --cov-report=html` - Generate coverage report
+- `poetry run black src tests` - Format code
+- `poetry run isort src tests` - Sort imports
+- `poetry run flake8 src tests` - Lint code
+- `poetry run mypy src` - Type checking
 
-# Run specific test types
-poetry run pytest -m unit                    # Unit tests only
-poetry run pytest -m integration             # Integration tests only
-poetry run pytest -m "not slow"              # Skip slow tests
-
-# Run single test file
-poetry run pytest tests/unit/domain/test_user.py
-
-# Run tests matching pattern
-poetry run pytest -k "test_subscription"
-```
-
-### Code Quality
-```bash
-# Format and lint (run all in sequence)
-poetry run black src tests
-poetry run isort src tests
-poetry run flake8 src tests
-poetry run mypy src
-
-# Run all quality checks at once
-poetry run pre-commit run --all-files
-```
-
-### Database Operations
-```bash
-# Create new migration
-poetry run python -m src.infrastructure.database.migrations.migration_manager create "migration_description"
-
-# Apply migrations
-poetry run python -m src.infrastructure.database.migrations.migration_manager upgrade
-
-# Rollback migration
-poetry run python -m src.infrastructure.database.migrations.migration_manager downgrade
-```
-
-### Docker Operations
-```bash
-# Build and start all services
-docker compose up -d
-
-# Start with monitoring stack (Prometheus, Grafana, Loki)
-docker compose --profile monitoring up -d
-
-# View logs
-docker compose logs -f bot
-docker compose logs -f admin
-docker compose logs -f scheduler
-
-# Start specific services
-docker compose up -d postgres redis          # Dependencies only
-docker compose up -d traefik                 # Reverse proxy with SSL
-
-# Health checks and troubleshooting
-docker compose ps                            # Check service status
-docker compose exec bot python -c "print('Health check')"
-
-# Stop and cleanup
-docker compose down
-docker compose down -v                       # Remove volumes too
-docker compose build --no-cache              # Rebuild containers
-```
+### Project Setup
+- `./scripts/setup.sh` - Automated development environment setup
+- `./scripts/healthcheck.sh` - Check service health
+- `python scripts/check_services.py` - Comprehensive service status check
 
 ## Project Architecture
 
-This project implements **Domain-Driven Design (DDD)** with **Clean Architecture** principles, a complete rewrite addressing coupling issues from the original 3xui-shop implementation.
+This project follows **Domain-Driven Design (DDD)** with **Clean Architecture** principles and uses **dependency-injector** for IoC.
 
-### Core Architectural Patterns
-
-- **Domain-Driven Design**: Rich domain entities with business logic encapsulation
-- **Dependency Injection**: dependency-injector framework with type-safe container configuration
-- **Event-Driven Architecture**: Domain events with async event bus for loose coupling
-- **CQRS Pattern**: Separate command and query handlers for clear responsibility separation
-- **Repository Pattern**: Abstract data access with Unit of Work pattern
-- **Hexagonal Architecture**: Ports and adapters with strict dependency inversion
-
-### Layer Structure
+### Core Architecture Layers
 
 ```
 src/
-├── domain/                    # Core business logic (no external dependencies)
-│   ├── entities/             # Rich domain objects (User, Order, Product)
-│   ├── value_objects/        # Immutable values (Money, UserProfile)
-│   ├── repositories/         # Abstract data access interfaces
-│   ├── services/             # Complex business rules coordination
-│   └── events/               # Domain events for state changes
-├── application/              # Application orchestration layer
-│   ├── commands/             # State-changing operations (Create, Update, Delete)
-│   ├── queries/              # Read-only data retrieval operations
-│   ├── handlers/             # Command/query processors
-│   └── services/             # Application workflow coordination
-├── infrastructure/           # Technical implementation details
-│   ├── database/             # SQLAlchemy repositories, migrations, models
-│   ├── external/             # Payment gateways (Cryptomus, Telegram Stars)
-│   ├── background_tasks/     # APScheduler jobs and cleanup tasks
-│   └── configuration/        # Settings management with Pydantic
-├── presentation/             # User interface layers
-│   ├── telegram/             # Aiogram bot handlers and middleware
+├── domain/                    # 🏛️ Domain Layer - Core business logic
+│   ├── entities/             # Business entities (User, Order, Product)
+│   ├── value_objects/        # Immutable value objects (Money, UserProfile)
+│   ├── repositories/         # Repository interfaces
+│   ├── services/             # Domain services
+│   └── events/               # Domain events
+├── application/              # 🔧 Application Layer - Use cases
+│   ├── commands/             # Command handlers (CQRS)
+│   ├── queries/              # Query handlers (CQRS)
+│   ├── handlers/             # Event handlers
+│   └── services/             # Application services
+├── infrastructure/           # 🔌 Infrastructure Layer - Technical implementation
+│   ├── database/             # SQLAlchemy models, repositories, migrations
+│   ├── external/             # Payment gateways, analytics
+│   ├── background_tasks/     # APScheduler background tasks
+│   ├── configuration/        # Settings management
+│   └── notifications/        # Telegram notifications
+├── presentation/             # 🖥️ Presentation Layer - User interfaces
+│   ├── telegram/             # Telegram bot handlers and middleware
 │   ├── web/                  # FastAPI admin panel
-│   └── webhooks/             # Payment callback processing
-├── shared/                   # Cross-cutting concerns
-│   ├── events/               # Event bus and base event classes
-│   └── exceptions/           # Custom exception types
-└── core/                     # Core infrastructure
-    └── containers.py         # dependency-injector container configuration
+│   └── webhooks/             # Payment webhook handlers
+├── shared/                   # 🔄 Shared utilities
+│   ├── events/               # Event bus system
+│   ├── exceptions/           # Custom exceptions
+│   └── utils/                # Common utilities
+└── core/                     # 🏗️ Core framework
+    └── containers.py         # Dependency injection container
 ```
 
-### Key Components
+### Key Architectural Patterns
 
-- **Application Container** (`src/core/containers.py`): dependency-injector container with type-safe service registration
-- **Event Bus** (`src/shared/events/bus.py`): Async in-memory event dispatcher for service decoupling
-- **Database Manager** (`src/infrastructure/database/manager.py`): Connection pooling and session management
-- **Payment Gateway Factory** (`src/infrastructure/external/payment_gateways/factory.py`): Pluggable payment processing system
-- **UnitOfWork Pattern**: Transaction boundary management across repositories
+- **Domain-Driven Design**: Clear business boundaries and ubiquitous language
+- **Clean Architecture**: Dependency inversion with layers pointing inward
+- **CQRS**: Separate command and query responsibilities
+- **Event-Driven Architecture**: Asynchronous event bus for loose coupling
+- **Dependency Injection**: `dependency-injector` framework for IoC
+- **Repository Pattern**: Abstracted data access
+- **Unit of Work**: Transaction management across repositories
 
-## Configuration Management
+### Dependency Injection System
 
-Configuration uses **modular YAML** with environment variable overrides:
+The project uses `dependency-injector` framework with the main container in `src/core/containers.py`:
 
-### Setup Process
-1. Copy base configuration: `cp config/settings.example.yml config/settings.yml`
-2. Copy environment template: `cp .env.example .env`
-3. Edit required fields: `bot.token`, `bot.admins` (admin user IDs)
-4. Configure payment gateways: `payments.cryptomus.api_key` and `merchant_id`
-5. Set database URL for production: `database.url`
+#### Key Container Components
+- **ApplicationContainer**: Main DI container managing all services
+- **Factory Functions**: Lazy initialization to avoid circular dependencies
+- **@inject Decorator**: Automatic dependency injection in handlers
+- **Provide Annotations**: Explicit dependency declarations
 
-### Environment Variables
-Environment variables override YAML settings (precedence: ENV → YAML → defaults):
-- `BOT_TOKEN`: Telegram bot token (required)
-- `DATABASE_URL`: Production database connection string
-- `REDIS_URL`: Redis connection for caching and events
-- `CRYPTOMUS_API_KEY`, `CRYPTOMUS_MERCHANT_ID`: Payment gateway credentials
-- `DOMAIN`: Production domain for SSL and webhooks
-
-### Key Configuration Sections
-- `bot`: Telegram bot token and admin settings
-- `database`: SQLite (dev) or PostgreSQL (production) connection
-- `redis`: Caching and event storage (Docker: `digitalstore-redis:6379`)
-- `payments`: Gateway settings (Cryptomus, Telegram Stars)
-- `shop`: Business rules (trial periods, referral rates, default currency)
-
-### Products Configuration
-Products are loaded from `data/products.json` (copy from `products.example.json`):
-- **Categories**: software, gaming, subscription, digital_goods, services
-- **Delivery Types**: license_key, account_info, download_link, api_access, manual
-- **Stock Management**: Automatic stock tracking with configurable thresholds
-- **Dynamic Templates**: Key generation with placeholders for user data
-
-### Localization
-Multi-language support using Fluent format in `locales/` directory:
-- Default language: English (`locales/en/`)
-- Add new languages by creating corresponding locale directories
-- Translation keys use dot notation (e.g., `shop.product.price`)
-
-## Dependency Injection Usage
-
-The project uses **dependency-injector** framework for enterprise-grade dependency injection:
-
+#### Usage Example
 ```python
 from dependency_injector.wiring import inject, Provide
 from src.core.containers import ApplicationContainer
 
-# Service registration (done in src/core/containers.py)
-class ApplicationContainer(containers.DeclarativeContainer):
-    user_service = providers.Factory(...)
-
-# Explicit injection with type safety
 @inject
 async def my_handler(
-    user_service: UserApplicationService = Provide[ApplicationContainer.user_service]
-) -> None:
+    user_service: UserApplicationService = Provide[ApplicationContainer.user_service],
+    order_service: OrderApplicationService = Provide[ApplicationContainer.order_service]
+):
+    # Services automatically injected
     user = await user_service.get_user_by_id("123")
-    
-# Works in class constructors too
-@inject
-class OrderService:
-    def __init__(
-        self,
-        uow: UnitOfWork = Provide[ApplicationContainer.unit_of_work],
-        payment_factory: PaymentGatewayFactory = Provide[ApplicationContainer.payment_factory]
-    ):
-        self.uow = uow
-        self.payment_factory = payment_factory
+    order = await order_service.create_order(...)
 ```
 
-### Key Features
-- **Type Safety**: Full IDE support and static type checking
-- **Factory Pattern**: Lazy initialization using factory functions
-- **Container Configuration**: Centralized dependency configuration in `src/core/containers.py`
-- **Wiring**: Automatic dependency resolution for registered modules
+### Core Services
 
-## Event System Usage
+#### Application Services
+- **UserApplicationService**: User management and authentication
+- **OrderApplicationService**: Order processing and fulfillment
+- **ProductApplicationService**: Product catalog management
+- **PaymentApplicationService**: Payment processing coordination
+- **ReferralApplicationService**: Multi-level referral system
+- **PromocodeApplicationService**: Discount code management
+- **TrialApplicationService**: Trial subscription handling
+- **ProductLoaderService**: JSON product catalog loading
 
-Domain events enable decoupled communication between bounded contexts:
+#### Infrastructure Services
+- **PaymentGatewayFactory**: Multi-gateway payment processing
+- **NotificationService**: Admin and user messaging
+- **AnalyticsService**: Usage analytics and tracking
+- **DatabaseManager**: Database connection and session management
+- **EventBus**: Asynchronous event distribution
 
-```python
-from src.shared.events import event_bus
-from src.domain.events.user_events import UserRegistered
+### Database Layer
 
-# Publishing from domain entities
-user = User.create(username="john", email="john@example.com")
-user.add_domain_event(UserRegistered.create(user_id=user.id, email=user.email))
+#### Models (Infrastructure Layer)
+Located in `src/infrastructure/database/models/`:
+- **User**: Central user entity with relationships
+- **Order**: Order transactions and status
+- **Product**: Digital product catalog
+- **Promocode**: Discount codes system
+- **Referral**: Multi-level referral tracking
 
-# Event handlers run automatically
-@event_handler("UserRegistered")
-class WelcomeMessageHandler:
-    @inject
-    async def handle(self, event: UserRegistered, notification_service: NotificationService):
-        await notification_service.send_welcome_message(event.user_id)
-```
+#### Repositories
+Repository pattern with interface in domain layer and implementation in infrastructure:
+- Domain interfaces: `src/domain/repositories/`
+- SQLAlchemy implementations: `src/infrastructure/database/repositories/`
 
-## Development Guidelines
+#### Migrations
+- Migration files: `src/infrastructure/database/migrations/`
+- Custom migration manager with automatic schema detection
+- Support for both SQLite (dev) and PostgreSQL (prod)
 
-### Adding New Features
-1. **Domain First**: Create entities and value objects in `src/domain/entities/`
-2. **Define Events**: Add domain events in `src/domain/events/` for important state changes
-3. **Repository Interfaces**: Define data access contracts in `src/domain/repositories/`
-4. **Application Layer**: Implement commands/queries in `src/application/`
-5. **Infrastructure**: Implement repositories and external adapters
-6. **Presentation**: Add Telegram handlers in `src/presentation/telegram/handlers/`
-7. **Register Dependencies**: Update DI registrations in `src/core/containers.py`
+### Configuration Management
 
-### Database Schema Changes
-1. Modify SQLAlchemy models in `src/infrastructure/database/models/`
-2. Create migration: `poetry run python -m ...migration_manager create "description"`
-3. Test migration: `poetry run python -m ...migration_manager upgrade`
-4. Update repository implementations if needed
+#### Settings System
+- Main config: `config/settings.yml`
+- Security config: `config/settings.security.yml` (for sensitive data)
+- Pydantic-based settings validation in `src/infrastructure/configuration/settings.py`
 
-### Payment Gateway Integration
-1. Implement `PaymentGateway` base class from `src/infrastructure/external/payment_gateways/base.py`
-2. Register in factory (`src/infrastructure/external/payment_gateways/factory.py`)
-3. Add webhook handling in `src/presentation/webhooks/` if required
-4. Update configuration schema in `src/infrastructure/configuration/settings.py`
+#### Key Configuration Sections
+- **Bot**: Telegram bot token, admins, domain
+- **Database**: Connection settings with driver flexibility
+- **Shop**: Business logic settings (trial, referral rates)
+- **Payments**: Gateway configurations (Cryptomus, Telegram Stars)
+- **Products**: Catalog file path and categories
+
+### Payment System
+
+#### Multi-Gateway Architecture
+- **Base Gateway**: Abstract payment gateway interface
+- **Supported Gateways**: Telegram Stars, Cryptomus
+- **Factory Pattern**: Dynamic gateway selection
+- **Webhook Integration**: Automatic payment status updates
+
+#### Gateway Implementation
+1. Inherit from `PaymentGateway` base class
+2. Implement required methods (`create_payment`, `handle_callback`)
+3. Register in `PaymentGatewayFactory`
+4. Add webhook routes if needed
+
+### Background Tasks
+
+#### Scheduler System
+- **APScheduler**: Async job scheduling
+- **Cleanup Tasks**: Auto-cancel expired transactions
+- **Notification Tasks**: Automated messaging
+- **Payment Tasks**: Transaction status monitoring
+
+#### Task Management
+- Main scheduler: `src/infrastructure/background_tasks/scheduler_main.py`
+- Task definitions: `src/infrastructure/background_tasks/`
+- Configurable intervals and retry policies
+
+### Product System
+
+#### JSON-Based Catalog
+- Product definitions in `data/products.json`
+- Categories: software, gaming, subscription, digital, education
+- Delivery types: license_key, account_info, download_link, api_access
+- Stock management and dynamic pricing
+- Template-based key generation
 
 ### Testing Strategy
-- **Unit Tests** (`tests/unit/`): Test domain logic in isolation using mocks
-- **Integration Tests** (`tests/integration/`): Test repository implementations with real database
-- **Application Tests**: End-to-end testing of command/query handlers
-- **Factory Pattern**: Use `factory-boy` for consistent test data generation
 
-## Important Development Constraints
+#### Test Structure
+- Unit tests: `tests/unit/` - Domain and application logic
+- Integration tests: `tests/integration/` - Full workflow testing
+- Test configuration: `tests/conftest.py`
 
-- **Dependency Rule**: Domain layer never imports from application/infrastructure
-- **Async Everywhere**: All I/O operations must use async/await patterns
-- **Event Publishing**: Always publish domain events for significant business state changes
-- **Immutable Value Objects**: Use `frozen=True` dataclasses for value objects
-- **Type Safety**: Comprehensive type hints required, `mypy` must pass without errors
-- **Interface Segregation**: Depend on abstractions (interfaces), not concrete implementations
+#### Test Dependencies
+- **pytest**: Test framework with async support
+- **factory-boy**: Test data factories
+- **fakeredis**: Redis mocking
+- **aioresponses**: HTTP mocking
 
-## Common Development Issues
+### Development Workflow
 
-- **Missing Dependencies**: Check DI container registrations in `src/core/containers.py`
-- **Event Handlers Not Triggering**: Verify handler registration with `@event_handler` decorator
-- **Migration Conflicts**: Always create migrations on feature branches, resolve before merging
-- **Configuration Loading**: Validate settings precedence (YAML → ENV vars → defaults)
-- **Circular Dependencies**: Resolve through interfaces and proper dependency injection patterns
-- **Database Sessions**: Always use UnitOfWork pattern, never direct session access
+#### Adding New Features
+1. **Domain Layer**: Define entities and value objects in `src/domain/`
+2. **Application Layer**: Implement use cases in `src/application/services/`
+3. **Infrastructure Layer**: Add persistence in `src/infrastructure/database/`
+4. **Presentation Layer**: Create handlers in `src/presentation/telegram/handlers/`
+5. **Dependency Registration**: Wire services in `src/core/containers.py`
+6. **Handler Wiring**: Add module to container wiring in `src/main.py`
 
-This architecture ensures maintainability, testability, and extensibility while maintaining clean separation of concerns and business logic isolation.
+#### Database Changes
+1. Modify domain entities in `src/domain/entities/`
+2. Update SQLAlchemy models in `src/infrastructure/database/models/`
+3. Create migration: `poetry run python -m src.infrastructure.database.migrations.migration_manager create "description"`
+4. Apply migration: `poetry run python -m src.infrastructure.database.migrations.migration_manager upgrade`
+
+### Deployment Architecture
+
+#### Docker Services
+- **bot**: Main Telegram bot application
+- **admin**: Web-based admin panel
+- **scheduler**: Background task processor
+- **postgres**: Primary database
+- **redis**: Caching and session storage
+- **traefik**: Reverse proxy with SSL termination
+
+#### Production Features
+- **Zero-downtime deployment**: Via Traefik load balancing
+- **Health checks**: All services have health endpoints
+- **SSL termination**: Automatic Let's Encrypt certificates
+- **Monitoring**: Optional Prometheus + Grafana stack
+- **Logging**: Optional Loki + Promtail for log aggregation
+
+### Monitoring and Observability
+
+#### Health Checking
+- Service health endpoints
+- Database connectivity checks
+- Redis availability monitoring
+- Automatic service restart on failure
+
+#### Logging
+- Structured logging with configurable levels
+- File rotation and archiving
+- Console and file output
+- Error tracking and admin notifications
+
+This is a production-ready Telegram e-commerce bot with sophisticated architecture supporting multi-gateway payments, referral systems, and enterprise-scale deployment patterns.

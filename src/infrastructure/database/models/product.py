@@ -3,8 +3,7 @@
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import Boolean, Integer, Numeric, String, Text
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import Integer, JSON, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
@@ -44,7 +43,7 @@ class ProductModel(Base):
     
     # Additional data
     extra_data: Mapped[Dict[str, Any]] = mapped_column(
-        JSONB,
+        JSON,
         default=dict,
         nullable=False
     )
