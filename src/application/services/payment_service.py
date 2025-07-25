@@ -3,7 +3,7 @@
 import uuid
 from typing import Dict, List, Optional
 
-from src.domain.entities.order import Order, PaymentMethod
+from src.domain.entities.order import Order, PaymentMethod, OrderStatus
 from src.domain.repositories.order_repository import OrderRepository
 from src.domain.repositories.base import UnitOfWork
 from src.infrastructure.external.payment_gateways.factory import PaymentGatewayFactory
@@ -49,7 +49,7 @@ class PaymentApplicationService:
             if not order:
                 raise ValueError(f"Order with ID {order_id} not found")
 
-            if order.status not in ["pending", "processing"]:
+            if order.status not in [OrderStatus.PENDING]:
                 raise ValueError(f"Cannot create payment for order {order_id} - invalid status: {order.status}")
 
             # Get appropriate payment gateway
@@ -63,7 +63,7 @@ class PaymentApplicationService:
                 amount=order.amount.amount,
                 currency=order.amount.currency,
                 description=f"Payment for {order.product_name}",
-                user_telegram_id=order.user_telegram_id,
+                user_telegram_id=metadata.get('telegram_user_id', 0) if metadata else 0,
                 return_url=return_url,
                 metadata=metadata or {}
             )
@@ -177,7 +177,7 @@ class PaymentApplicationService:
             if not order:
                 raise ValueError(f"Order with ID {order_id} not found")
 
-            if order.status != "paid":
+            if order.status != OrderStatus.PAID:
                 raise ValueError(f"Cannot refund order {order_id} - not paid")
 
             if not order.payment_id or not order.payment_method:
@@ -247,7 +247,7 @@ class PaymentApplicationService:
                         }
                     
                     payment_method_stats[method]["count"] += 1
-                    if order.status in ["paid", "completed"]:
+                    if order.status in [OrderStatus.PAID, OrderStatus.COMPLETED]:
                         payment_method_stats[method]["revenue"] += order.amount.amount
 
             return {
