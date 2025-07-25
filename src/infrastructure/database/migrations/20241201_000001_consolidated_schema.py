@@ -26,23 +26,36 @@ class ConsolidatedSchemaFixedMigration(BaseMigration):
     def _get_version(self) -> str:
         return "2.1.0"
     
-    async def _detect_database_type(self, session: AsyncSession) -> str:
-        """Detect the database type."""
-        try:
-            # Try to detect database by executing a database-specific query
-            await session.execute(text("SELECT sqlite_version()"))
+    def _detect_database_type(self, session: AsyncSession) -> str:
+        """Detect the database type by checking environment variables."""
+        import os
+        
+        # Check environment variable first (Docker deployment)
+        database_url = os.getenv("DATABASE_URL", "")
+        if "postgresql" in database_url.lower():
+            return "postgresql"
+        elif "sqlite" in database_url.lower():
             return "sqlite"
+        
+        # Fallback: check bind dialect
+        try:
+            bind = session.get_bind()
+            if hasattr(bind, 'dialect') and hasattr(bind.dialect, 'name'):
+                dialect_name = bind.dialect.name.lower()
+                if "postgresql" in dialect_name:
+                    return "postgresql"
+                elif "sqlite" in dialect_name:
+                    return "sqlite"
         except:
-            try:
-                await session.execute(text("SELECT version()"))
-                return "postgresql"
-            except:
-                return "sqlite"  # Default fallback
+            pass
+        
+        # Default for Docker environment
+        return "postgresql"
     
     async def up(self, session: AsyncSession) -> None:
         """Create consolidated schema with database-specific types."""
         
-        db_type = await self._detect_database_type(session)
+        db_type = self._detect_database_type(session)
         
         # Database-specific type mappings
         if db_type == "sqlite":
@@ -312,7 +325,7 @@ class ConsolidatedSchemaFixedMigration(BaseMigration):
     async def validate(self, session: AsyncSession) -> bool:
         """Validate that the consolidated migration was applied correctly."""
         try:
-            db_type = await self._detect_database_type(session)
+            db_type = self._detect_database_type(session)
             
             if db_type == "sqlite":
                 # SQLite validation
