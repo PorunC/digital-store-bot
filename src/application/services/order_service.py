@@ -108,13 +108,16 @@ class OrderApplicationService:
                 product_description=product.description,
                 amount=total_amount,
                 quantity=quantity,
-                payment_method=payment_method,
                 referrer_id=referrer_id,
                 promocode=promocode,
                 is_trial=is_trial,
                 is_extend=is_extend,
                 notes=notes
             )
+            
+            # Set payment method if provided
+            if payment_method:
+                order.payment_method = payment_method
 
             # Set expiration time (30 minutes for payment)
             order.set_expiration(datetime.utcnow() + timedelta(minutes=30))
