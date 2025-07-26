@@ -7,6 +7,9 @@ from typing import Any, Dict, Optional
 
 from pydantic import BaseModel, Field
 
+# Import PaymentMethod from domain layer to avoid duplication
+from src.domain.entities.order import PaymentMethod
+
 
 class PaymentStatus(str, Enum):
     """Payment status enumeration."""
@@ -17,10 +20,7 @@ class PaymentStatus(str, Enum):
     REFUNDED = "refunded"
 
 
-class PaymentMethod(str, Enum):
-    """Payment method enumeration."""
-    TELEGRAM_STARS = "telegram_stars"
-    CRYPTOMUS = "cryptomus"
+# PaymentMethod moved to domain layer - import from src.domain.entities.order
 
 
 class PaymentData(BaseModel):

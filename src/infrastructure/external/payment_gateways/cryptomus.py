@@ -9,7 +9,8 @@ from urllib.parse import urlencode
 
 import aiohttp
 
-from .base import PaymentGateway, PaymentData, PaymentResult, PaymentStatus, PaymentMethod, WebhookData
+from src.domain.entities.order import PaymentMethod
+from .base import PaymentGateway, PaymentData, PaymentResult, PaymentStatus, WebhookData
 
 logger = logging.getLogger(__name__)
 

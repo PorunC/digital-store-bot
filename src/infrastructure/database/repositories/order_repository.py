@@ -68,10 +68,7 @@ class SqlAlchemyOrderRepository(OrderRepository):
         order_model.amount = entity.amount.amount
         order_model.currency = entity.amount.currency
         order_model.quantity = entity.quantity
-        order_model.payment_method = (
-            entity.payment_method.value if hasattr(entity.payment_method, 'value') 
-            else str(entity.payment_method)
-        ) if entity.payment_method else None
+        order_model.payment_method = str(entity.payment_method) if entity.payment_method else None
         order_model.payment_gateway = entity.payment_gateway
         order_model.payment_url = entity.payment_url
         order_model.status = entity.status.value
@@ -322,10 +319,7 @@ class SqlAlchemyOrderRepository(OrderRepository):
             amount=entity.amount.amount,
             currency=entity.amount.currency,
             quantity=entity.quantity,
-            payment_method=(
-                entity.payment_method.value if hasattr(entity.payment_method, 'value') 
-                else str(entity.payment_method)
-            ) if entity.payment_method else None,
+            payment_method=str(entity.payment_method) if entity.payment_method else None,
             payment_gateway=entity.payment_gateway,
             payment_url=entity.payment_url,
             status=entity.status.value,

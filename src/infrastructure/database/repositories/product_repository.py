@@ -63,15 +63,15 @@ class SqlAlchemyProductRepository(ProductRepository):
         # Update fields
         product_model.name = entity.name
         product_model.description = entity.description
-        product_model.category = entity.category.value
+        product_model.category = str(entity.category)
         product_model.price_amount = entity.price.amount
         product_model.price_currency = entity.price.currency
         product_model.duration_days = entity.duration_days
-        product_model.delivery_type = entity.delivery_type.value
+        product_model.delivery_type = str(entity.delivery_type)
         product_model.delivery_template = entity.delivery_template
         product_model.key_format = entity.key_format
         product_model.stock = entity.stock
-        product_model.status = entity.status.value
+        product_model.status = str(entity.status)
         product_model.extra_data = entity.metadata
         product_model.version = entity.version
 
@@ -210,14 +210,14 @@ class SqlAlchemyProductRepository(ProductRepository):
             version=entity.version,
             name=entity.name,
             description=entity.description,
-            category=entity.category.value if hasattr(entity.category, 'value') else str(entity.category),
+            category=str(entity.category),
             price_amount=entity.price.amount,
             price_currency=entity.price.currency,
             duration_days=entity.duration_days,
-            delivery_type=entity.delivery_type.value if hasattr(entity.delivery_type, 'value') else str(entity.delivery_type),
+            delivery_type=str(entity.delivery_type),
             delivery_template=entity.delivery_template,
             key_format=entity.key_format,
             stock=entity.stock,
-            status=entity.status.value if hasattr(entity.status, 'value') else str(entity.status),
+            status=str(entity.status),
             extra_data=entity.metadata
         )

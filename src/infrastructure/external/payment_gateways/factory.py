@@ -6,7 +6,8 @@ from typing import Dict, List, Optional
 from aiogram import Bot
 
 from src.infrastructure.configuration.settings import Settings
-from .base import PaymentGateway, PaymentMethod
+from src.domain.entities.order import PaymentMethod
+from .base import PaymentGateway
 from .telegram_stars import TelegramStarsGateway
 from .cryptomus import CryptomusGateway
 
