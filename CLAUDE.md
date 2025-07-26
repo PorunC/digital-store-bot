@@ -159,7 +159,6 @@ Repository pattern with interface in domain layer and implementation in infrastr
 
 #### Settings System
 - Main config: `config/settings.yml`
-- Security config: `config/settings.security.yml` (for sensitive data)
 - Pydantic-based settings validation in `src/infrastructure/configuration/settings.py`
 
 #### Key Configuration Sections

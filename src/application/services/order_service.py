@@ -100,15 +100,22 @@ class OrderApplicationService:
                 currency=product.price.currency
             )
 
-            # Convert referrer_id to UUID if it's a valid UUID string, otherwise set to None
+            # Convert referrer_id to UUID if it's a valid UUID string
+            # If it's not a UUID, try to find user by telegram_id and use their UUID
             referrer_uuid = None
             if referrer_id:
                 try:
+                    # First try direct UUID conversion
                     referrer_uuid = uuid.UUID(referrer_id)
                 except ValueError:
-                    # referrer_id is not a valid UUID (might be telegram_id or other format)
-                    # In this case, we set it to None to avoid errors
-                    referrer_uuid = None
+                    # If not a UUID, assume it's a telegram_id and look up the user
+                    try:
+                        referrer_user = await self._get_user_repository().get_by_telegram_id(int(referrer_id))
+                        if referrer_user:
+                            referrer_uuid = referrer_user.id
+                    except (ValueError, TypeError):
+                        # If all conversion attempts fail, set to None
+                        referrer_uuid = None
                     
             # Create order
             order = Order.create(
