@@ -68,10 +68,16 @@ class SqlAlchemyOrderRepository(OrderRepository):
         order_model.amount = entity.amount.amount
         order_model.currency = entity.amount.currency
         order_model.quantity = entity.quantity
-        order_model.payment_method = entity.payment_method.value if entity.payment_method else None
+        order_model.payment_method = (
+            entity.payment_method.value if hasattr(entity.payment_method, 'value') 
+            else str(entity.payment_method)
+        ) if entity.payment_method else None
         order_model.payment_gateway = entity.payment_gateway
         order_model.payment_url = entity.payment_url
-        order_model.status = entity.status.value
+        order_model.status = (
+            entity.status.value if hasattr(entity.status, 'value') 
+            else str(entity.status)
+        )
         order_model.expires_at = entity.expires_at
         order_model.paid_at = entity.paid_at
         order_model.completed_at = entity.completed_at
@@ -319,10 +325,16 @@ class SqlAlchemyOrderRepository(OrderRepository):
             amount=entity.amount.amount,
             currency=entity.amount.currency,
             quantity=entity.quantity,
-            payment_method=entity.payment_method.value if entity.payment_method else None,
+            payment_method=(
+                entity.payment_method.value if hasattr(entity.payment_method, 'value') 
+                else str(entity.payment_method)
+            ) if entity.payment_method else None,
             payment_gateway=entity.payment_gateway,
             payment_url=entity.payment_url,
-            status=entity.status.value,
+            status=(
+                entity.status.value if hasattr(entity.status, 'value')
+                else str(entity.status)
+            ),
             expires_at=entity.expires_at,
             paid_at=entity.paid_at,
             completed_at=entity.completed_at,

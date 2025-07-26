@@ -1,5 +1,6 @@
 """SQLAlchemy Product repository implementation."""
 
+import logging
 import uuid
 from typing import List, Optional
 
@@ -13,6 +14,7 @@ from src.domain.value_objects.product_info import DeliveryType
 from ..models.product import ProductModel
 
 
+logger = logging.getLogger(__name__)
 class SqlAlchemyProductRepository(ProductRepository):
     """SQLAlchemy implementation of Product repository."""
 
@@ -179,6 +181,25 @@ class SqlAlchemyProductRepository(ProductRepository):
         """Convert ProductModel to Product entity."""
         money = Money(amount=model.price_amount, currency=model.price_currency)
         
+        # Handle enum conversion safely
+        try:
+            category = ProductCategory(model.category)
+        except ValueError:
+            logger.warning(f"Unknown category '{model.category}' in database, using DIGITAL as fallback")
+            category = ProductCategory.DIGITAL
+            
+        try:
+            delivery_type = DeliveryType(model.delivery_type)
+        except ValueError:
+            logger.warning(f"Unknown delivery_type '{model.delivery_type}' in database, using DIGITAL as fallback")
+            delivery_type = DeliveryType.DIGITAL
+            
+        try:
+            status = ProductStatus(model.status)
+        except ValueError:
+            logger.warning(f"Unknown status '{model.status}' in database, using ACTIVE as fallback")
+            status = ProductStatus.ACTIVE
+        
         product = Product(
             id=model.id,
             created_at=model.created_at,
@@ -186,14 +207,14 @@ class SqlAlchemyProductRepository(ProductRepository):
             version=model.version,
             name=model.name,
             description=model.description,
-            category=ProductCategory(model.category),
+            category=category,
             price=money,
             duration_days=model.duration_days,
-            delivery_type=DeliveryType(model.delivery_type),
+            delivery_type=delivery_type,
             delivery_template=model.delivery_template,
             key_format=model.key_format,
             stock=model.stock,
-            status=ProductStatus(model.status),
+            status=status,
             metadata=model.extra_data or {}
         )
 
@@ -203,6 +224,15 @@ class SqlAlchemyProductRepository(ProductRepository):
 
     def _entity_to_model(self, entity: Product) -> ProductModel:
         """Convert Product entity to ProductModel."""
+        # Handle category - it might be enum or string
+        category_value = entity.category.value if hasattr(entity.category, 'value') else str(entity.category)
+        
+        # Handle delivery_type - it might be enum or string
+        delivery_type_value = entity.delivery_type.value if hasattr(entity.delivery_type, 'value') else str(entity.delivery_type)
+        
+        # Handle status - it might be enum or string
+        status_value = entity.status.value if hasattr(entity.status, 'value') else str(entity.status)
+        
         return ProductModel(
             id=entity.id,
             created_at=entity.created_at,
@@ -210,14 +240,14 @@ class SqlAlchemyProductRepository(ProductRepository):
             version=entity.version,
             name=entity.name,
             description=entity.description,
-            category=entity.category.value,
+            category=category_value,
             price_amount=entity.price.amount,
             price_currency=entity.price.currency,
             duration_days=entity.duration_days,
-            delivery_type=entity.delivery_type.value,
+            delivery_type=delivery_type_value,
             delivery_template=entity.delivery_template,
             key_format=entity.key_format,
             stock=entity.stock,
-            status=entity.status.value,
+            status=status_value,
             extra_data=entity.metadata
         )
