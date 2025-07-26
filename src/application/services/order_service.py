@@ -133,7 +133,16 @@ class OrderApplicationService:
             
             # Set payment method if provided
             if payment_method:
-                order.payment_method = payment_method
+                # Ensure payment_method is PaymentMethod enum, convert if string
+                if isinstance(payment_method, str):
+                    try:
+                        order.payment_method = PaymentMethod(payment_method)
+                    except ValueError:
+                        # Invalid payment method string, log warning and skip
+                        import logging
+                        logging.getLogger(__name__).warning(f"Invalid payment method: {payment_method}")
+                else:
+                    order.payment_method = payment_method
                 
             # Add notes if provided
             if notes:
