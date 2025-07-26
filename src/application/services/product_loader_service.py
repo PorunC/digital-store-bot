@@ -173,6 +173,20 @@ class ProductLoaderService:
 
         # Create the product using domain entity
         logger.debug(f"Creating product {product_id} with metadata type: {type(additional_metadata)} value: {additional_metadata}")
+        
+        # Convert product_id to UUID if it's a string
+        try:
+            if isinstance(product_id, str):
+                import uuid
+                product_uuid = uuid.UUID(product_id)
+            else:
+                product_uuid = product_id
+        except ValueError:
+            # If it's not a valid UUID, generate a new one and log warning
+            import uuid
+            product_uuid = uuid.uuid4()
+            logger.warning(f"Invalid UUID format for product_id {product_id}, using generated UUID: {product_uuid}")
+        
         product = Product.create(
             name=name,
             description=description,
@@ -185,9 +199,12 @@ class ProductLoaderService:
             metadata=additional_metadata
         )
         
-        # Override the ID to match JSON
-        product._id = product_id  # Direct assignment to match JSON ID
-        product._status = status
+        # Set the ID properly and handle status
+        product.id = product_uuid
+        if status == ProductStatus.INACTIVE:
+            product.deactivate()
+        elif status == ProductStatus.ACTIVE and product.status != ProductStatus.ACTIVE:
+            product.activate()
         
         # Add to repository
         async with self.unit_of_work:

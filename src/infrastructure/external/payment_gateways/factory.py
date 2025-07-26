@@ -1,11 +1,10 @@
 """Payment gateway factory with proper dependency injection."""
 
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union, Any
 
 from aiogram import Bot
 
-from src.infrastructure.configuration.settings import Settings
 from src.domain.entities.order import PaymentMethod
 from .base import PaymentGateway
 from .telegram_stars import TelegramStarsGateway
@@ -17,38 +16,78 @@ logger = logging.getLogger(__name__)
 class PaymentGatewayFactory:
     """Factory for creating payment gateways."""
 
-    def __init__(self, settings: Settings, bot: Optional[Bot] = None):
-        self.settings = settings
+    def __init__(self, config: Union[Dict[str, Dict[str, Any]], Any], bot: Optional[Bot] = None):
+        """
+        Initialize factory with configuration.
+        
+        Args:
+            config: Either a dictionary with gateway configs or Settings object
+            bot: Optional Telegram bot instance
+        """
+        self.config = config
         self.bot = bot
         self._gateways: Dict[PaymentMethod, PaymentGateway] = {}
+        self._registry: Dict[PaymentMethod, type] = {}
+        
+        # Register default gateways
+        self.register_gateway(PaymentMethod.TELEGRAM_STARS, TelegramStarsGateway)
+        self.register_gateway(PaymentMethod.CRYPTOMUS, CryptomusGateway)
+        
         self._initialize_gateways()
+
+    def register_gateway(self, payment_method: PaymentMethod, gateway_class: type) -> None:
+        """Register a gateway class for a payment method."""
+        self._registry[payment_method] = gateway_class
+        logger.debug(f"Registered gateway {gateway_class.__name__} for {payment_method}")
+
+    def _get_gateway_config(self, gateway_name: str) -> Optional[Dict[str, Any]]:
+        """Get configuration for a gateway."""
+        if isinstance(self.config, dict):
+            # Direct dictionary configuration (for testing)
+            return self.config.get(gateway_name)
+        else:
+            # Settings object configuration (for production)
+            try:
+                if hasattr(self.config, 'payments'):
+                    payments = self.config.payments
+                    if gateway_name == 'telegram_stars' and hasattr(payments, 'telegram_stars'):
+                        return {
+                            "enabled": payments.telegram_stars.enabled,
+                            "bot_token": getattr(payments.telegram_stars, 'bot_token', None)
+                        }
+                    elif gateway_name == 'cryptomus' and hasattr(payments, 'cryptomus'):
+                        return {
+                            "enabled": payments.cryptomus.enabled,
+                            "api_key": payments.cryptomus.api_key,
+                            "merchant_id": payments.cryptomus.merchant_id
+                        }
+            except AttributeError:
+                logger.warning(f"Could not access configuration for {gateway_name}")
+        return None
 
     def _initialize_gateways(self) -> None:
         """Initialize available payment gateways."""
         try:
             # Initialize Telegram Stars gateway
-            if self.settings.payments.telegram_stars.enabled:
-                telegram_config = {
-                    "enabled": self.settings.payments.telegram_stars.enabled
-                }
-                self._gateways[PaymentMethod.TELEGRAM_STARS] = TelegramStarsGateway(
-                    config=telegram_config,
-                    bot=self.bot
-                )
-                logger.info("Telegram Stars gateway initialized")
+            telegram_config = self._get_gateway_config('telegram_stars')
+            if telegram_config and telegram_config.get('enabled', False):
+                gateway_class = self._registry.get(PaymentMethod.TELEGRAM_STARS)
+                if gateway_class:
+                    self._gateways[PaymentMethod.TELEGRAM_STARS] = gateway_class(
+                        config=telegram_config,
+                        bot=self.bot
+                    )
+                    logger.info("Telegram Stars gateway initialized")
 
             # Initialize Cryptomus gateway
-            if self.settings.payments.cryptomus.enabled:
-                cryptomus_config = {
-                    "enabled": self.settings.payments.cryptomus.enabled,
-                    "api_key": self.settings.payments.cryptomus.api_key,
-                    "merchant_id": self.settings.payments.cryptomus.merchant_id
-                }
-                
+            cryptomus_config = self._get_gateway_config('cryptomus')
+            if cryptomus_config and cryptomus_config.get('enabled', False):
                 # Validate Cryptomus configuration
-                if cryptomus_config["api_key"] and cryptomus_config["merchant_id"]:
-                    self._gateways[PaymentMethod.CRYPTOMUS] = CryptomusGateway(cryptomus_config)
-                    logger.info("Cryptomus gateway initialized")
+                if cryptomus_config.get("api_key") and cryptomus_config.get("merchant_id"):
+                    gateway_class = self._registry.get(PaymentMethod.CRYPTOMUS)
+                    if gateway_class:
+                        self._gateways[PaymentMethod.CRYPTOMUS] = gateway_class(cryptomus_config)
+                        logger.info("Cryptomus gateway initialized")
                 else:
                     logger.warning("Cryptomus gateway disabled: missing configuration")
 
@@ -59,12 +98,11 @@ class PaymentGatewayFactory:
         """Set bot instance for Telegram Stars gateway."""
         self.bot = bot
         # Re-initialize Telegram Stars gateway with bot
-        if (self.settings.payments.telegram_stars.enabled and 
-            PaymentMethod.TELEGRAM_STARS in self._gateways):
-            telegram_config = {
-                "enabled": self.settings.payments.telegram_stars.enabled
-            }
-            self._gateways[PaymentMethod.TELEGRAM_STARS] = TelegramStarsGateway(
+        telegram_config = self._get_gateway_config('telegram_stars')
+        if (telegram_config and telegram_config.get('enabled', False) and 
+            PaymentMethod.TELEGRAM_STARS in self._registry):
+            gateway_class = self._registry[PaymentMethod.TELEGRAM_STARS]
+            self._gateways[PaymentMethod.TELEGRAM_STARS] = gateway_class(
                 config=telegram_config,
                 bot=self.bot
             )
@@ -131,9 +169,9 @@ class PaymentGatewayFactory:
         available_gateways = self.get_available_gateways()
         return available_gateways[0] if available_gateways else None
 
-    def reload_configuration(self, settings: Settings) -> None:
+    def reload_configuration(self, config: Union[Dict[str, Dict[str, Any]], Any]) -> None:
         """Reload gateway configuration."""
-        self.settings = settings
+        self.config = config
         self._gateways.clear()
         self._initialize_gateways()
         logger.info("Payment gateways reloaded")

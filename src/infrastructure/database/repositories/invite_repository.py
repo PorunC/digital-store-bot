@@ -59,7 +59,7 @@ class SqlAlchemyInviteRepository(InviteRepository):
         if not invite_model:
             raise ValueError(f"Invite with ID {entity.id} not found")
 
-        # Update fields
+        # Update fields with safe enum handling
         invite_model.name = entity.name
         invite_model.hash_code = entity.hash_code
         invite_model.description = entity.description
@@ -67,7 +67,7 @@ class SqlAlchemyInviteRepository(InviteRepository):
         invite_model.total_clicks = entity.total_clicks
         invite_model.total_conversions = entity.total_conversions
         invite_model.conversion_reward_days = entity.conversion_reward_days
-        invite_model.status = entity.status.value
+        invite_model.status = entity.status.value if hasattr(entity.status, 'value') else str(entity.status)
         invite_model.expires_at = entity.expires_at
         invite_model.last_clicked_at = entity.last_clicked_at
         invite_model.deactivated_at = entity.deactivated_at
@@ -305,7 +305,7 @@ class SqlAlchemyInviteRepository(InviteRepository):
             total_clicks=entity.total_clicks,
             total_conversions=entity.total_conversions,
             conversion_reward_days=entity.conversion_reward_days,
-            status=entity.status.value,
+            status=entity.status.value if hasattr(entity.status, 'value') else str(entity.status),
             expires_at=entity.expires_at,
             last_clicked_at=entity.last_clicked_at,
             deactivated_at=entity.deactivated_at,

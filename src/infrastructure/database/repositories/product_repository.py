@@ -62,18 +62,18 @@ class SqlAlchemyProductRepository(ProductRepository):
         if not product_model:
             raise ValueError(f"Product with ID {entity.id} not found")
 
-        # Update fields
+        # Update fields with safe enum handling
         product_model.name = entity.name
         product_model.description = entity.description
-        product_model.category = entity.category.value
+        product_model.category = entity.category.value if hasattr(entity.category, 'value') else str(entity.category)
         product_model.price_amount = entity.price.amount
         product_model.price_currency = entity.price.currency
         product_model.duration_days = entity.duration_days
-        product_model.delivery_type = entity.delivery_type.value
+        product_model.delivery_type = entity.delivery_type.value if hasattr(entity.delivery_type, 'value') else str(entity.delivery_type)
         product_model.delivery_template = entity.delivery_template
         product_model.key_format = entity.key_format
         product_model.stock = entity.stock
-        product_model.status = entity.status.value
+        product_model.status = entity.status.value if hasattr(entity.status, 'value') else str(entity.status)
         product_model.extra_data = entity.metadata
         product_model.version = entity.version
 

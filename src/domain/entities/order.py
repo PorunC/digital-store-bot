@@ -87,6 +87,14 @@ class Order(AggregateRoot):
         expires_at: Optional[datetime] = None,
     ) -> "Order":
         """Create a new order."""
+        # Validate input parameters
+        cls._validate_order_creation_params(
+            product_name=product_name,
+            product_description=product_description,
+            amount=amount,
+            quantity=quantity
+        )
+        
         order = cls(
             user_id=user_id,
             product_id=product_id,
@@ -114,6 +122,42 @@ class Order(AggregateRoot):
         
         return order
 
+    @staticmethod
+    def _validate_order_creation_params(
+        product_name: str,
+        product_description: str,
+        amount: Money,
+        quantity: int
+    ) -> None:
+        """Validate order creation parameters."""
+        # Validate product name
+        if not product_name or not product_name.strip():
+            raise ValueError("Product name cannot be empty")
+        
+        if len(product_name.strip()) > 255:
+            raise ValueError("Product name cannot exceed 255 characters")
+        
+        # Validate product description
+        if not product_description or not product_description.strip():
+            raise ValueError("Product description cannot be empty")
+        
+        if len(product_description.strip()) > 1000:
+            raise ValueError("Product description cannot exceed 1000 characters")
+        
+        # Validate amount (Money class already validates against negative values)
+        if amount.is_zero:
+            raise ValueError("Order amount must be greater than zero")
+        
+        if amount.amount > 1000000:  # 1 million limit
+            raise ValueError("Order amount cannot exceed 1,000,000")
+        
+        # Validate quantity
+        if quantity <= 0:
+            raise ValueError("Order quantity must be greater than zero")
+        
+        if quantity > 1000:  # Reasonable limit
+            raise ValueError("Order quantity cannot exceed 1,000 units")
+
     def set_payment_details(
         self,
         payment_method: PaymentMethod,
@@ -125,6 +169,9 @@ class Order(AggregateRoot):
         """Set payment details for the order."""
         if self.status != OrderStatus.PENDING:
             raise ValueError("Cannot set payment details for non-pending order")
+        
+        # Validate payment method and gateway consistency
+        self._validate_payment_method_gateway_consistency(payment_method, payment_gateway)
             
         self.payment_method = payment_method
         self.payment_gateway = payment_gateway
@@ -133,6 +180,26 @@ class Order(AggregateRoot):
         self.payment_url = payment_url
         
         self.mark_updated()
+    
+    def _validate_payment_method_gateway_consistency(
+        self, 
+        payment_method: PaymentMethod, 
+        payment_gateway: str
+    ) -> None:
+        """Validate that payment method and gateway are consistent."""
+        # Define expected gateway names for each payment method
+        expected_gateways = {
+            PaymentMethod.CRYPTOMUS: ["cryptomus"],
+            PaymentMethod.TELEGRAM_STARS: ["telegram_stars", "telegram"],
+            PaymentMethod.MANUAL: ["manual", "admin"]
+        }
+        
+        expected = expected_gateways.get(payment_method, [])
+        if expected and payment_gateway.lower() not in expected:
+            raise ValueError(
+                f"Payment method {payment_method} is not compatible with gateway '{payment_gateway}'. "
+                f"Expected one of: {expected}"
+            )
 
     def mark_as_processing(self) -> None:
         """Mark order as processing (payment initiated)."""

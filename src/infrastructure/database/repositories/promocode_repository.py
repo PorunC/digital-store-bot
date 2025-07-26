@@ -59,15 +59,15 @@ class SqlAlchemyPromocodeRepository(PromocodeRepository):
         if not promocode_model:
             raise ValueError(f"Promocode with ID {entity.id} not found")
 
-        # Update fields
+        # Update fields with safe enum handling
         promocode_model.code = entity.code
-        promocode_model.promocode_type = entity.promocode_type.value
+        promocode_model.promocode_type = entity.promocode_type.value if hasattr(entity.promocode_type, 'value') else str(entity.promocode_type)
         promocode_model.duration_days = entity.duration_days
         promocode_model.discount_percent = entity.discount_percent
         promocode_model.discount_amount = entity.discount_amount
         promocode_model.max_uses = entity.max_uses
         promocode_model.current_uses = entity.current_uses
-        promocode_model.status = entity.status.value
+        promocode_model.status = entity.status.value if hasattr(entity.status, 'value') else str(entity.status)
         promocode_model.expires_at = entity.expires_at
         promocode_model.activated_at = entity.activated_at
         promocode_model.deactivated_at = entity.deactivated_at
@@ -272,13 +272,13 @@ class SqlAlchemyPromocodeRepository(PromocodeRepository):
             updated_at=entity.updated_at,
             version=entity.version,
             code=entity.code,
-            promocode_type=entity.promocode_type.value,
+            promocode_type=entity.promocode_type.value if hasattr(entity.promocode_type, 'value') else str(entity.promocode_type),
             duration_days=entity.duration_days,
             discount_percent=entity.discount_percent,
             discount_amount=entity.discount_amount,
             max_uses=entity.max_uses,
             current_uses=entity.current_uses,
-            status=entity.status.value,
+            status=entity.status.value if hasattr(entity.status, 'value') else str(entity.status),
             expires_at=entity.expires_at,
             activated_at=entity.activated_at,
             deactivated_at=entity.deactivated_at,
