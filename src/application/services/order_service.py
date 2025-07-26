@@ -100,6 +100,16 @@ class OrderApplicationService:
                 currency=product.price.currency
             )
 
+            # Convert referrer_id to UUID if it's a valid UUID string, otherwise set to None
+            referrer_uuid = None
+            if referrer_id:
+                try:
+                    referrer_uuid = uuid.UUID(referrer_id)
+                except ValueError:
+                    # referrer_id is not a valid UUID (might be telegram_id or other format)
+                    # In this case, we set it to None to avoid errors
+                    referrer_uuid = None
+                    
             # Create order
             order = Order.create(
                 user_id=uuid.UUID(user_id),
@@ -108,7 +118,7 @@ class OrderApplicationService:
                 product_description=product.description,
                 amount=total_amount,
                 quantity=quantity,
-                referrer_id=uuid.UUID(referrer_id) if referrer_id else None,
+                referrer_id=referrer_uuid,
                 promocode=promocode,
                 is_trial=is_trial,
                 is_extend=is_extend
