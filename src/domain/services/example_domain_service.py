@@ -326,11 +326,19 @@ class OrderApplicationService:
             user, products, promocode
         )
         
-        # Create order
+        # Create order (example implementation - fix parameter signature)
+        # Note: This is example code and may not reflect actual product structure
+        first_product = products[0] if products else None
+        if not first_product:
+            raise ValueError("No products provided")
+            
         order = Order.create(
             user_id=user.id,
-            products=products,
+            product_id=first_product.id,  # Assuming first product
+            product_name=first_product.name,
+            product_description=first_product.description,
             amount=total_amount,
+            quantity=len(products),
             promocode=promocode
         )
         
