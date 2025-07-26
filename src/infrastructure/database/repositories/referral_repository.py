@@ -59,10 +59,10 @@ class SqlAlchemyReferralRepository(ReferralRepository):
         if not referral_model:
             raise ValueError(f"Referral with ID {entity.id} not found")
 
-        # Update fields
+        # Update fields with safe enum handling
         referral_model.referrer_id = entity.referrer_id
         referral_model.referred_user_id = entity.referred_user_id
-        referral_model.status = entity.status.value
+        referral_model.status = entity.status.value if hasattr(entity.status, 'value') else str(entity.status)
         referral_model.first_level_reward_granted = entity.first_level_reward_granted
         referral_model.second_level_reward_granted = entity.second_level_reward_granted
         referral_model.activated_at = entity.activated_at
@@ -248,7 +248,7 @@ class SqlAlchemyReferralRepository(ReferralRepository):
             version=entity.version,
             referrer_id=entity.referrer_id,
             referred_user_id=entity.referred_user_id,
-            status=entity.status.value,
+            status=entity.status.value if hasattr(entity.status, 'value') else str(entity.status),
             first_level_reward_granted=entity.first_level_reward_granted,
             second_level_reward_granted=entity.second_level_reward_granted,
             activated_at=entity.activated_at,

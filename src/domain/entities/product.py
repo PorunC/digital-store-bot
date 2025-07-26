@@ -76,7 +76,7 @@ class Product(AggregateRoot):
         event = ProductCreated.create(
             product_id=str(product.id),
             name=name,
-            category=category.value,
+            category=category.value if hasattr(category, 'value') else str(category),
             price_amount=float(price.amount),
             price_currency=price.currency
         )

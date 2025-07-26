@@ -239,7 +239,7 @@ class TaskScheduler:
         return {
             "name": task.name,
             "enabled": task.enabled,
-            "status": task.status.value,
+            "status": task.status.value if hasattr(task.status, 'value') else str(task.status),
             "last_run": task.last_run.isoformat() if task.last_run else None,
             "next_run": task.next_run.isoformat() if task.next_run else None,
             "error_count": task.error_count,

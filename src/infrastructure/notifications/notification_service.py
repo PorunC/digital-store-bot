@@ -137,7 +137,7 @@ class NotificationService:
             "template_data": {
                 "user_name": user.profile.first_name,
                 "days_remaining": days_remaining,
-                "subscription_type": user.subscription_type.value.title(),
+                "subscription_type": (user.subscription_type.value if hasattr(user.subscription_type, 'value') else str(user.subscription_type)).title(),
                 "expires_date": user.subscription_expires_at.strftime("%Y-%m-%d") if user.subscription_expires_at else None,
                 "renewal_command": "/catalog"
             }

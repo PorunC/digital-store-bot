@@ -87,7 +87,7 @@ class Promocode(AggregateRoot):
         event = PromocodeCreated.create(
             promocode_id=str(promocode.id),
             code=promocode.code,
-            promocode_type=promocode_type.value,
+            promocode_type=promocode_type.value if hasattr(promocode_type, 'value') else str(promocode_type),
             duration_days=duration_days,
             max_uses=max_uses
         )
@@ -147,7 +147,7 @@ class Promocode(AggregateRoot):
             promocode_id=str(self.id),
             code=self.code,
             user_id=str(user_id),
-            promocode_type=self.promocode_type.value,
+            promocode_type=self.promocode_type.value if hasattr(self.promocode_type, 'value') else str(self.promocode_type),
             duration_days=self.duration_days
         )
         self.add_domain_event(event)
@@ -226,7 +226,7 @@ class Promocode(AggregateRoot):
     def _get_activation_error(self) -> str:
         """Get reason why promocode cannot be activated."""
         if self.status != PromocodeStatus.ACTIVE:
-            return f"Status is {self.status.value}"
+            return f"Status is {self.status.value if hasattr(self.status, 'value') else str(self.status)}"
         if self.is_expired:
             return "Promocode has expired"
         if self.current_uses >= self.max_uses:

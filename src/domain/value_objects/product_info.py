@@ -1,9 +1,12 @@
 """Product-related value objects."""
 
 from enum import Enum
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from pydantic import BaseModel, Field, validator
+
+if TYPE_CHECKING:
+    from ..entities.product import Product
 
 
 class DeliveryType(str, Enum):
@@ -137,7 +140,8 @@ class ProductFilter(BaseModel):
 
     def matches_product(self, product: "Product") -> bool:
         """Check if product matches filter criteria."""
-        if self.category and product.category.value != self.category:
+        category_value = product.category.value if hasattr(product.category, 'value') else str(product.category)
+        if self.category and category_value != self.category:
             return False
             
         if self.available_only and not product.is_available:

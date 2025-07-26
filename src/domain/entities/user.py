@@ -123,7 +123,7 @@ class User(AggregateRoot):
         # Publish domain event
         event = UserTrialStarted.create(
             user_id=str(self.id),
-            trial_type=trial_type.value,
+            trial_type=trial_type.value if hasattr(trial_type, 'value') else str(trial_type),
             trial_expires_at=expires_at,
             trial_period_days=trial_period_days
         )
@@ -159,7 +159,7 @@ class User(AggregateRoot):
         event = UserSubscriptionExtended.create(
             user_id=str(self.id),
             days_extended=days,
-            subscription_type=subscription_type.value,
+            subscription_type=subscription_type.value if hasattr(subscription_type, 'value') else str(subscription_type),
             old_expiry_date=old_expiry,
             new_expiry_date=new_expiry
         )

@@ -195,7 +195,7 @@ class Invite(AggregateRoot):
             "name": self.name,
             "hash_code": self.hash_code,
             "campaign": self.campaign,
-            "status": self.status.value,
+            "status": self.status.value if hasattr(self.status, 'value') else str(self.status),
             "clicks": self.clicks,
             "conversions": self.conversions,
             "conversion_rate": self.conversion_rate,

@@ -90,7 +90,7 @@ class RedisMessageQueue(MessageQueue):
                 "id": message.id,
                 "type": message.type,
                 "payload": message.payload,
-                "priority": message.priority.value,
+                "priority": message.priority.value if hasattr(message.priority, 'value') else str(message.priority),
                 "retry_count": message.retry_count,
                 "max_retries": message.max_retries,
                 "created_at": message.created_at.isoformat(),
@@ -100,7 +100,8 @@ class RedisMessageQueue(MessageQueue):
             serialized = json.dumps(message_data)
             
             # Use priority queue (sorted set) for priority handling
-            priority_score = message.priority.value * 1000 + int(datetime.utcnow().timestamp())
+            priority_value = message.priority.value if hasattr(message.priority, 'value') else int(str(message.priority))
+            priority_score = priority_value * 1000 + int(datetime.utcnow().timestamp())
             
             await self.redis.zadd(f"queue:{queue_name}", {serialized: priority_score})
             
@@ -167,7 +168,7 @@ class RedisMessageQueue(MessageQueue):
                 "id": message.id,
                 "type": message.type,
                 "payload": message.payload,
-                "priority": message.priority.value,
+                "priority": message.priority.value if hasattr(message.priority, 'value') else str(message.priority),
                 "retry_count": message.retry_count,
                 "max_retries": message.max_retries,
                 "created_at": message.created_at.isoformat(),
