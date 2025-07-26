@@ -71,6 +71,14 @@ class PaymentGatewayFactory:
 
     def get_gateway(self, payment_method: PaymentMethod) -> Optional[PaymentGateway]:
         """Get payment gateway by method."""
+        # Ensure payment_method is PaymentMethod enum
+        if isinstance(payment_method, str):
+            try:
+                payment_method = PaymentMethod(payment_method)
+            except ValueError:
+                logger.warning(f"Invalid payment method string: {payment_method}")
+                return None
+        
         gateway = self._gateways.get(payment_method)
         
         if gateway and gateway.is_available():
