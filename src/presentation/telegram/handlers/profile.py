@@ -157,14 +157,8 @@ async def refresh_profile(
         await callback.answer("❌ User not found. Please use /start first.", show_alert=True)
         return
 
-    try:
-        # Try to delete the message, but don't fail if it doesn't exist
-        await callback.message.delete()
-    except Exception:
-        pass  # Ignore if message can't be deleted
-
-    # Call show_profile_callback - services will be injected automatically
-    await show_profile_callback(callback, user)
+    # Call show_profile_callback with all required parameters
+    await show_profile_callback(callback, user, user_service, referral_service, order_service)
 
 
 @profile_router.callback_query(F.data == "profile_language")
@@ -197,15 +191,15 @@ async def change_language(callback: CallbackQuery, state: FSMContext):
 @inject
 async def set_language(
     callback: CallbackQuery,
+    user: Optional[User],
     user_service: UserApplicationService = Provide[ApplicationContainer.user_service]
 ):
     """Set user language."""
     
     language_code = callback.data.replace("set_lang_", "")
-    user = await user_service.get_user_by_telegram_id(callback.from_user.id)
     
     if not user:
-        await callback.answer("❌ User not found", show_alert=True)
+        await callback.answer("❌ User not found. Please use /start first.", show_alert=True)
         return
     
     await user_service.update_user_profile(
@@ -225,30 +219,28 @@ async def set_language(
     lang_name = language_names.get(language_code, language_code)
     await callback.answer(f"✅ Language changed to {lang_name}")
     
-    # Create a new callback query to trigger refresh
-    refresh_callback = CallbackQuery(
-        id=callback.id + "_refresh",  
-        from_user=callback.from_user,
-        message=callback.message,
-        data="profile_refresh"
-    )
+    # Refresh profile by calling show_profile_callback directly
+    # Get the required services from container
+    from src.core.containers import container
+    user_service = container.user_service()
+    referral_service = container.referral_service()
+    order_service = container.order_service()
     
-    # Call refresh_profile handler directly which will handle dependency injection
-    await refresh_profile(refresh_callback, user)
+    await show_profile_callback(callback, user, user_service, referral_service, order_service)
 
 
 @profile_router.callback_query(F.data == "profile_referrals")
 @inject
 async def show_referrals(
     callback: CallbackQuery,
+    user: Optional[User],
     user_service: UserApplicationService = Provide[ApplicationContainer.user_service],
     referral_service: ReferralApplicationService = Provide[ApplicationContainer.referral_service]
 ):
     """Show user referrals."""
     
-    user = await user_service.get_user_by_telegram_id(callback.from_user.id)
     if not user:
-        await callback.answer("❌ User not found", show_alert=True)
+        await callback.answer("❌ User not found. Please use /start first.", show_alert=True)
         return
 
     referrals = await referral_service.get_active_referrals(str(user.id))
@@ -295,13 +287,13 @@ async def show_referrals(
 @inject
 async def copy_referral_link(
     callback: CallbackQuery,
+    user: Optional[User],
     user_service: UserApplicationService = Provide[ApplicationContainer.user_service]
 ):
     """Copy referral link."""
     
-    user = await user_service.get_user_by_telegram_id(callback.from_user.id)
     if not user:
-        await callback.answer("❌ User not found", show_alert=True)
+        await callback.answer("❌ User not found. Please use /start first.", show_alert=True)
         return
 
     bot_info = await callback.bot.get_me()
@@ -317,14 +309,14 @@ async def copy_referral_link(
 @inject
 async def show_orders(
     callback: CallbackQuery,
+    user: Optional[User],
     user_service: UserApplicationService = Provide[ApplicationContainer.user_service],
     order_service: OrderApplicationService = Provide[ApplicationContainer.order_service]
 ):
     """Show user order history."""
     
-    user = await user_service.get_user_by_telegram_id(callback.from_user.id)
     if not user:
-        await callback.answer("❌ User not found", show_alert=True)
+        await callback.answer("❌ User not found. Please use /start first.", show_alert=True)
         return
 
     orders = await order_service.get_user_orders(str(user.id))
@@ -512,14 +504,14 @@ async def trial_info(
 @inject
 async def start_trial(
     callback: CallbackQuery,
+    user: Optional[User],
     trial_service: TrialApplicationService = Provide[ApplicationContainer.trial_service],
     user_service: UserApplicationService = Provide[ApplicationContainer.user_service]
 ):
     """Start user trial."""
     
-    user = await user_service.get_user_by_telegram_id(callback.from_user.id)
     if not user:
-        await callback.answer("❌ User not found", show_alert=True)
+        await callback.answer("❌ User not found. Please use /start first.", show_alert=True)
         return
 
     try:
