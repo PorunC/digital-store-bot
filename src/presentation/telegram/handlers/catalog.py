@@ -30,11 +30,9 @@ async def show_catalog_alias(callback_query: CallbackQuery, unit_of_work) -> Non
 async def show_catalog_main(callback_query: CallbackQuery, unit_of_work) -> None:
     """Show main catalog with categories."""
     try:
-        # Get container and create product repository directly
-        from src.core.containers import ApplicationContainer
-        container = ApplicationContainer()
-        product_repository_factory = container.product_repository_factory()
-        product_repository = product_repository_factory(unit_of_work.session)
+        # Create product repository directly from session
+        from src.infrastructure.database.repositories.product_repository import SqlAlchemyProductRepository
+        product_repository = SqlAlchemyProductRepository(unit_of_work.session)
         
         # Get all available categories
         categories = await product_repository.get_categories()
@@ -65,11 +63,9 @@ async def show_category_products(callback_query: CallbackQuery, unit_of_work) ->
     try:
         category_name = callback_query.data.split(":")[-1]
         
-        # Get container and create product repository directly
-        from src.core.containers import ApplicationContainer
-        container = ApplicationContainer()
-        product_repository_factory = container.product_repository_factory()
-        product_repository = product_repository_factory(unit_of_work.session)
+        # Create product repository directly from session
+        from src.infrastructure.database.repositories.product_repository import SqlAlchemyProductRepository
+        product_repository = SqlAlchemyProductRepository(unit_of_work.session)
         
         # Get products by category
         from src.domain.entities.product import ProductCategory
@@ -105,11 +101,9 @@ async def show_product_details(callback_query: CallbackQuery, unit_of_work, user
     try:
         product_id = callback_query.data.split(":")[-1]
         
-        # Get container and create product repository directly
-        from src.core.containers import ApplicationContainer
-        container = ApplicationContainer()
-        product_repository_factory = container.product_repository_factory()
-        product_repository = product_repository_factory(unit_of_work.session)
+        # Create product repository directly from session
+        from src.infrastructure.database.repositories.product_repository import SqlAlchemyProductRepository
+        product_repository = SqlAlchemyProductRepository(unit_of_work.session)
         
         # Get product details
         product = await product_repository.get_by_id(product_id)
