@@ -184,23 +184,23 @@ async def refresh_profile(
 
 
 @profile_router.callback_query(F.data == "profile_language")
-async def change_language(callback: CallbackQuery, state: FSMContext):
-    """Change user language."""
-    languages = [
-        ("🇺🇸 English", "en"),
-        ("🇷🇺 Русский", "ru"),
-        ("🇨🇳 中文", "zh"),
-        ("🇪🇸 Español", "es"),
-        ("🇩🇪 Deutsch", "de"),
-        ("🇫🇷 Français", "fr")
-    ]
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=lang_name, callback_data=f"set_lang_{lang_code}")]
-        for lang_name, lang_code in languages
-    ] + [[InlineKeyboardButton(text="🔙 Back", callback_data="profile_refresh")]])
-    
+async def change_language(callback: CallbackQuery):
+    """Show language selection menu."""
     try:
+        languages = [
+            ("🇺🇸 English", "en"),
+            ("🇷🇺 Русский", "ru"),
+            ("🇨🇳 中文", "zh"),
+            ("🇪🇸 Español", "es"),
+            ("🇩🇪 Deutsch", "de"),
+            ("🇫🇷 Français", "fr")
+        ]
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text=lang_name, callback_data=f"set_lang_{lang_code}")]
+            for lang_name, lang_code in languages
+        ] + [[InlineKeyboardButton(text="🔙 Back", callback_data="profile_refresh")]])
+        
         await callback.message.edit_text(
             "🌐 **Select your language:**\n\n"
             "Choose your preferred language for the bot interface.",
@@ -208,25 +208,25 @@ async def change_language(callback: CallbackQuery, state: FSMContext):
             parse_mode="Markdown"
         )
         await callback.answer("🌐 Language selection opened!")
+        
     except TelegramBadRequest as e:
         if "message is not modified" in str(e):
-            # Content is the same, which is fine - language menu already shown
             await callback.answer("🌐 Language menu is already displayed!")
         else:
-            # Different Telegram error, re-raise it
-            raise
+            logger.error(f"Telegram error in change_language: {e}")
+            await callback.answer("❌ Error opening language menu", show_alert=True)
+    except Exception as e:
+        logger.error(f"Error in change_language: {e}")
+        await callback.answer("❌ Error opening language menu", show_alert=True)
 
 
 @profile_router.callback_query(F.data.startswith("set_lang_"))
-@inject
 async def set_language(
     callback: CallbackQuery,
     user: Optional[User],
-    user_service: UserApplicationService = Provide[ApplicationContainer.user_service],
-    referral_service: ReferralApplicationService = Provide[ApplicationContainer.referral_service],
-    order_service: OrderApplicationService = Provide[ApplicationContainer.order_service]
+    unit_of_work
 ):
-    """Set user language."""
+    """Set user language using direct repository access to avoid async context issues."""
     
     try:
         language_code = callback.data.replace("set_lang_", "")
@@ -235,12 +235,15 @@ async def set_language(
             await callback.answer("❌ User not found. Please use /start first.", show_alert=True)
             return
         
-        # Update user language
-        await user_service.update_user_profile(
-            str(user.id),
-            language_code=language_code
-        )
+        # Update user language directly via repository to avoid service layer complexity
+        from src.infrastructure.database.repositories.user_repository import SqlAlchemyUserRepository
+        user_repository = SqlAlchemyUserRepository(unit_of_work.session)
         
+        # Update the user's language preference
+        user.profile.language_code = language_code
+        await user_repository.update(user)
+        
+        # Language names for confirmation
         language_names = {
             "en": "🇺🇸 English",
             "ru": "🇷🇺 Russian",
@@ -251,16 +254,29 @@ async def set_language(
         }
         
         lang_name = language_names.get(language_code, language_code)
-        await callback.answer(f"✅ Language changed to {lang_name}")
         
-        # Refresh profile with updated language - use already injected services
-        await _show_profile_content(callback, user, user_service, referral_service, order_service)
+        # Simple success response without complex profile refresh
+        await callback.message.edit_text(
+            f"✅ **Language Updated**\n\n"
+            f"Your language has been changed to {lang_name}\n"
+            f"The interface will now display in your selected language.\n\n"
+            f"Changes will take effect with your next interaction.",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="👤 Back to Profile", callback_data="profile_refresh")],
+                [InlineKeyboardButton(text="🏠 Main Menu", callback_data="start")]
+            ]),
+            parse_mode="Markdown"
+        )
+        await callback.answer(f"✅ Language changed to {lang_name}")
         
     except Exception as e:
         import traceback
         error_msg = f"Error setting language: {str(e)}\n{traceback.format_exc()}"
         logger.error(error_msg)
-        await callback.answer(f"❌ Error: {str(e)}", show_alert=True)
+        try:
+            await callback.answer(f"❌ Error updating language", show_alert=True)
+        except:
+            pass
 
 
 @profile_router.callback_query(F.data == "profile_referrals")
