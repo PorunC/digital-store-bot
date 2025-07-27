@@ -1,7 +1,7 @@
 """Product catalog handlers with complete functionality."""
 
 import logging
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 
 from aiogram import Router, F
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
@@ -10,8 +10,11 @@ from src.domain.entities.user import User
 from src.domain.entities.product import Product, ProductCategory
 from src.application.services.product_service import ProductApplicationService
 from src.infrastructure.configuration.settings import Settings
-from dependency_injector.wiring import inject, Provide
+from dependency_injector.wiring import inject, Provide  
 from src.core.containers import ApplicationContainer
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 catalog_router = Router(name="catalog")
@@ -153,7 +156,7 @@ async def show_product_details(
 async def initiate_purchase(
     callback_query: CallbackQuery,
     user: Optional[User],
-    session
+    session: "AsyncSession"
 ) -> None:
     """Initiate product purchase using middleware-provided session."""
     try:

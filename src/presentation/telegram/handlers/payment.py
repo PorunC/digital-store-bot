@@ -1,7 +1,7 @@
 """Payment processing handlers."""
 
 import json
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, TYPE_CHECKING
 
 from aiogram import Router, F
 from aiogram.types import (
@@ -21,6 +21,10 @@ from src.domain.entities.order import PaymentMethod
 from src.domain.entities.user import User
 from dependency_injector.wiring import inject, Provide
 from src.core.containers import ApplicationContainer
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from src.infrastructure.database.unit_of_work import SqlAlchemyUnitOfWork
 
 payment_router = Router()
 
@@ -501,8 +505,8 @@ async def handle_payment_webhook(
 async def handle_stars_payment(
     callback: CallbackQuery,
     user: Optional[User],
-    unit_of_work,
-    session
+    unit_of_work: "SqlAlchemyUnitOfWork",
+    session: "AsyncSession"
 ):
     """Handle Telegram Stars payment using middleware-provided session."""
     try:
@@ -605,8 +609,8 @@ async def handle_stars_payment(
 async def handle_crypto_payment(
     callback: CallbackQuery,
     user: Optional[User],
-    unit_of_work,
-    session
+    unit_of_work: "SqlAlchemyUnitOfWork",
+    session: "AsyncSession"
 ):
     """Handle cryptocurrency payment using middleware-provided session."""
     try:
