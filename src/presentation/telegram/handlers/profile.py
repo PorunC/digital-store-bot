@@ -198,13 +198,21 @@ async def change_language(callback: CallbackQuery, state: FSMContext):
         for lang_name, lang_code in languages
     ] + [[InlineKeyboardButton(text="🔙 Back", callback_data="profile_refresh")]])
     
-    await callback.message.edit_text(
-        "🌐 **Select your language:**\n\n"
-        "Choose your preferred language for the bot interface.",
-        reply_markup=keyboard,
-        parse_mode="Markdown"
-    )
-    await callback.answer()
+    try:
+        await callback.message.edit_text(
+            "🌐 **Select your language:**\n\n"
+            "Choose your preferred language for the bot interface.",
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+        await callback.answer("🌐 Language selection opened!")
+    except TelegramBadRequest as e:
+        if "message is not modified" in str(e):
+            # Content is the same, which is fine - language menu already shown
+            await callback.answer("🌐 Language menu is already displayed!")
+        else:
+            # Different Telegram error, re-raise it
+            raise
 
 
 @profile_router.callback_query(F.data.startswith("set_lang_"))
