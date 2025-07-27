@@ -49,14 +49,9 @@ class TelegramBot:
         """Setup bot middleware."""
         try:
             from src.presentation.telegram.middleware.user_context import UserContextMiddleware
-            from src.presentation.telegram.middleware.database import DatabaseMiddleware
             from src.presentation.telegram.middleware.localization import LocalizationMiddleware
             from src.presentation.telegram.middleware.throttling import ThrottlingMiddleware
             from src.presentation.telegram.middleware.logging_middleware import LoggingMiddleware
-            from src.infrastructure.database.manager import DatabaseManager
-            
-            # Get database manager from container
-            db_manager = self.container.database_manager()
             
             # Setup middleware in order (first added is outermost)
             self.dispatcher.message.middleware(LoggingMiddleware())
@@ -77,9 +72,8 @@ class TelegramBot:
                 admin_ids=admin_ids
             ))
             
-            # Database middleware with manager
-            self.dispatcher.message.middleware(DatabaseMiddleware(db_manager))
-            self.dispatcher.callback_query.middleware(DatabaseMiddleware(db_manager))
+            # Database middleware removed - using dependency injection instead
+            # Note: Database sessions are managed through dependency injection in services
             
             # Localization middleware with settings
             self.dispatcher.message.middleware(LocalizationMiddleware(
@@ -132,8 +126,7 @@ class TelegramBot:
     async def _start_webhook(self) -> None:
         """Start bot in webhook mode."""
         logger.info("Starting bot in webhook mode")
-        from aiohttp import web, ClientSession
-        from aiohttp.web import run_app
+        from aiohttp import web
         
         # Build webhook URL from domain and bot token if not explicitly set
         webhook_url = self.settings.external.webhook_url
@@ -164,13 +157,17 @@ class TelegramBot:
         
         # Add webhook route
         async def webhook_handler(request):
-            data = await request.json()
-            # Process update through dispatcher
-            await self.dispatcher.feed_webhook_update(self.bot, data)
-            return web.Response()
+            try:
+                data = await request.json()
+                # Process update through dispatcher
+                await self.dispatcher.feed_webhook_update(self.bot, data)
+                return web.Response()
+            except Exception as e:
+                logger.error(f"Webhook processing error: {e}")
+                return web.Response(status=500)
         
         # Add health check route
-        async def health_handler(request):
+        async def health_handler(_):
             return web.json_response({"status": "healthy"})
         
         # Add webhook route with correct path
