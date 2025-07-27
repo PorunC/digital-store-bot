@@ -132,27 +132,8 @@ async def show_product_details(callback_query: CallbackQuery, unit_of_work, user
             pass
 
 
-@catalog_router.callback_query(F.data.startswith("product:buy:"))
-async def initiate_purchase(callback_query: CallbackQuery) -> None:
-    """Initiate product purchase - simplified for debugging."""
-    try:
-        await callback_query.answer("Testing basic handler...")
-        await callback_query.message.edit_text(
-            f"🔧 **Debug Mode**\n\n"
-            f"Handler called successfully!\n"
-            f"Data: {callback_query.data}\n"
-            f"User ID: {callback_query.from_user.id}\n\n"
-            f"This confirms the basic routing works."
-        )
-        
-    except Exception as e:
-        import traceback
-        error_msg = f"❌ Error in handler: {str(e)}\n{traceback.format_exc()}"
-        print(error_msg)  # Log to console
-        try:
-            await callback_query.answer(f"Error: {str(e)}")
-        except:
-            pass
+# 移除catalog中的purchase handler - 现在使用payment.py中的完整实现
+# Buy按钮现在使用buy_product_{product_id}格式，会路由到payment.py的handler
 
 
 def _create_categories_keyboard(categories: List[str]) -> InlineKeyboardMarkup:
@@ -220,7 +201,7 @@ def _create_product_details_keyboard(product: Product, user: Optional[User]) -> 
     if product.is_available and user and not user.is_blocked:
         buttons.append([InlineKeyboardButton(
             text=f"💳 Buy for {product.price.to_string()}",
-            callback_data=f"product:buy:{product.id}"
+            callback_data=f"buy_product_{product.id}"
         )])
     elif not product.is_available:
         buttons.append([InlineKeyboardButton(

@@ -1,6 +1,7 @@
 """Payment processing handlers."""
 
 import json
+import logging
 from typing import Dict, Any, Optional, TYPE_CHECKING
 
 from aiogram import Router, F
