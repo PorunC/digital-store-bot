@@ -49,10 +49,6 @@ async def start_command(
             reply_markup=keyboard,
             parse_mode="HTML"
         )
-        
-        # Handle trial offer for new users
-        if user.is_new_user and settings.shop.trial.enabled:
-            await _offer_trial(message, user, user_service, settings)
 
     except Exception as e:
         logger.error(f"Error in start command: {e}")
@@ -114,12 +110,12 @@ def _create_main_menu_keyboard(user: User, settings: Settings) -> InlineKeyboard
         callback_data="catalog:main"
     )])
     
-    # Trial button for eligible users
+    # Special Offer button for eligible users (moved from auto-popup)
     if (user.can_use_trial() and settings.shop.trial.enabled and 
         not user.is_premium):
         buttons.append([InlineKeyboardButton(
-            text="🎁 Try for Free",
-            callback_data="trial:start"
+            text="🎁 Special Offer",
+            callback_data="trial:offer"
         )])
     
     # Profile and referral buttons
@@ -157,13 +153,12 @@ def _create_basic_keyboard() -> InlineKeyboardMarkup:
     ])
 
 
-async def _offer_trial(
-    message: Message,
+async def _show_trial_offer(
+    callback: CallbackQuery,
     user: User,
-    user_service: UserApplicationService,
     settings: Settings
 ) -> None:
-    """Offer trial to new users."""
+    """Show trial offer when user clicks Special Offer button."""
     try:
         trial_days = settings.shop.trial.period_days
         
@@ -190,19 +185,21 @@ Would you like to start your free trial?
                 callback_data=f"trial:activate:{trial_days}"
             )],
             [InlineKeyboardButton(
-                text="❌ Maybe Later",
-                callback_data="trial:skip"
+                text="🔙 Back to Menu",
+                callback_data="start:main"
             )]
         ])
         
-        await message.answer(
+        await callback.message.edit_text(
             text=trial_text,
             reply_markup=keyboard,
             parse_mode="HTML"
         )
+        await callback.answer()
         
     except Exception as e:
-        logger.error(f"Error offering trial: {e}")
+        logger.error(f"Error showing trial offer: {e}")
+        await callback.answer("❌ Error loading offer")
 
 
 @start_router.callback_query(F.data.startswith("trial:"))
@@ -226,7 +223,15 @@ async def handle_trial_callback(
             
         action = callback_query.data.split(":")
         
-        if len(action) >= 2 and action[1] == "activate":
+        if len(action) >= 2 and action[1] == "offer":
+            # Show trial offer (moved from auto-popup)
+            await _show_trial_offer(callback_query, user, settings)
+            
+        elif len(action) >= 2 and action[1] == "start":
+            # Alternative entry point for trial start
+            await _show_trial_offer(callback_query, user, settings)
+            
+        elif len(action) >= 2 and action[1] == "activate":
             # Activate trial
             trial_days = int(action[2]) if len(action) > 2 else settings.shop.trial.period_days
             
