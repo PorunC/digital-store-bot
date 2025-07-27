@@ -18,7 +18,7 @@ class UserContextMiddleware(BaseMiddleware):
 
     def __init__(self, container: ApplicationContainer):
         self.container = container
-        self.user_service: Optional[UserApplicationService] = None
+        # Removed service caching to ensure fresh instances with correct async context
 
     async def __call__(
         self,
@@ -28,9 +28,8 @@ class UserContextMiddleware(BaseMiddleware):
     ) -> Any:
         """Provide user context to the handler."""
         try:
-            # Get user service from container
-            if not self.user_service:
-                self.user_service = self.container.user_service()
+            # Get fresh user service from container (no caching to ensure correct async context)
+            user_service = self.container.user_service()
 
             # Extract Telegram user from event
             telegram_user = data.get("event_from_user")
@@ -39,7 +38,7 @@ class UserContextMiddleware(BaseMiddleware):
                 return await handler(event, data)
 
             # Get or create user
-            user = await self._get_or_create_user(telegram_user, data)
+            user = await self._get_or_create_user(telegram_user, data, user_service)
             
             if user:
                 # Add user to handler data
@@ -49,7 +48,7 @@ class UserContextMiddleware(BaseMiddleware):
                 
                 # Record user activity
                 try:
-                    await self.user_service.record_user_activity(str(user.id))
+                    await user_service.record_user_activity(str(user.id))
                 except Exception as e:
                     logger.warning(f"Failed to record user activity: {e}")
 
@@ -66,19 +65,20 @@ class UserContextMiddleware(BaseMiddleware):
     async def _get_or_create_user(
         self,
         telegram_user: TelegramUser,
-        data: Dict[str, Any]
+        data: Dict[str, Any],
+        user_service: UserApplicationService
     ) -> Optional[User]:
         """Get existing user or create new one."""
         try:
             # Try to get existing user
-            user = await self.user_service.get_user_by_telegram_id(telegram_user.id)
+            user = await user_service.get_user_by_telegram_id(telegram_user.id)
             
             if user:
                 # Update user profile if needed
                 if (user.profile.first_name != telegram_user.first_name or
                     user.profile.username != telegram_user.username):
                     
-                    user = await self.user_service.update_user_profile(
+                    user = await user_service.update_user_profile(
                         str(user.id),
                         first_name=telegram_user.first_name,
                         username=telegram_user.username,
@@ -91,7 +91,7 @@ class UserContextMiddleware(BaseMiddleware):
             referrer_id = self._extract_referrer_id(data)
             invite_source = self._extract_invite_source(data)
 
-            user = await self.user_service.register_user(
+            user = await user_service.register_user(
                 telegram_id=telegram_user.id,
                 first_name=telegram_user.first_name,
                 username=telegram_user.username,
