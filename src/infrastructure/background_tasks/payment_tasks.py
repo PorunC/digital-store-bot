@@ -142,7 +142,6 @@ class PaymentTasks:
                 "timestamp": datetime.utcnow().isoformat()
             }
     
-    @inject
     async def cleanup_old_payment_data(self) -> dict:
         """Clean up old payment data and logs."""
         try:
@@ -288,7 +287,6 @@ class PaymentTasks:
                 "timestamp": datetime.utcnow().isoformat()
             }
     
-    @inject
     async def reconcile_payments(self) -> dict:
         """Reconcile payments between internal records and gateway records."""
         try:

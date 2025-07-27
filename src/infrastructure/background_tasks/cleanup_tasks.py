@@ -119,7 +119,6 @@ class CleanupTasks:
                 "processed_at": datetime.utcnow().isoformat()
             }
     
-    @inject
     async def cleanup_old_logs(self) -> dict:
         """Clean up old log files and temporary data."""
         try:
@@ -145,7 +144,6 @@ class CleanupTasks:
                 "processed_at": datetime.utcnow().isoformat()
             }
     
-    @inject
     async def optimize_database(self) -> dict:
         """Perform database optimization operations."""
         try:
