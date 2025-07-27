@@ -55,7 +55,7 @@ async def initiate_purchase_simple(
         
         # Save order to database
         order = await order_repository.add(order)
-        await unit_of_work.commit()
+        # Note: DatabaseMiddleware will auto-commit, no need to manually commit
         
         # Show purchase confirmation with real order
         purchase_text = (
@@ -212,7 +212,7 @@ async def cancel_order(callback: CallbackQuery, unit_of_work):
             # Update order status to cancelled
             order.cancel("Cancelled by user")
             await order_repository.update(order)
-            await unit_of_work.commit()
+            # Note: DatabaseMiddleware will auto-commit, no need to manually commit
             
             await callback.message.edit_text(
                 f"❌ **Order Cancelled**\n\n"
