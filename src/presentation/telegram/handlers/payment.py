@@ -502,202 +502,46 @@ async def handle_payment_webhook(
 
 # Add missing payment method handlers
 @payment_router.callback_query(F.data.startswith("payment:stars:"))
-async def handle_stars_payment(
-    callback: CallbackQuery,
-    user: Optional[User],
-    unit_of_work: "SqlAlchemyUnitOfWork",
-    session: "AsyncSession"
-):
-    """Handle Telegram Stars payment using middleware-provided session."""
+async def handle_stars_payment(callback: CallbackQuery):
+    """Handle Telegram Stars payment - simplified for debugging."""
     try:
-        if not user:
-            await callback.answer("❌ User not found. Please use /start first.", show_alert=True)
-            return
-
-        # Get container and repository factories
-        from src.core.containers import container
-        product_repository_factory = container.product_repository_factory()
-        order_repository_factory = container.order_repository_factory()
-        payment_gateway_factory = container.payment_gateway_factory()
-        
-        # Create repositories using middleware session
-        product_repository = product_repository_factory(session)
-        order_repository = order_repository_factory(session)
-
-        product_id = callback.data.split(":")[-1]
-        product = await product_repository.get_by_id(product_id)
-        
-        if not product:
-            await callback.answer("❌ Product not found.", show_alert=True)
-            return
-
-        if not product.is_available:
-            await callback.answer("❌ Product is not available.", show_alert=True)
-            return
-
-        # Create order directly using repository
-        from src.domain.entities.order import Order
-        from src.domain.value_objects.money import Money
-        import uuid
-        
-        order = Order.create(
-            user_id=user.id,
-            product_id=uuid.UUID(product_id),
-            product_name=product.name,
-            product_description=product.description,
-            amount=Money(amount=product.price.amount, currency=product.price.currency),
-            quantity=1,
-            payment_method=PaymentMethod.TELEGRAM_STARS
+        await callback.answer("Testing Stars payment handler...")
+        await callback.message.edit_text(
+            f"🔧 **Debug Mode - Stars Payment**\n\n"
+            f"Handler called successfully!\n"
+            f"Data: {callback.data}\n"
+            f"User ID: {callback.from_user.id}\n\n"
+            f"This confirms Stars payment routing works."
         )
-        
-        # Set expiration and save order
-        from datetime import datetime, timedelta
-        order.set_expiration(datetime.utcnow() + timedelta(minutes=30))
-        
-        # Reserve stock
-        if product.stock != -1:
-            product.decrease_stock(1)
-            await product_repository.update(product)
-        
-        order = await order_repository.add(order)
-
-        # Create payment using gateway
-        gateway = payment_gateway_factory.get_gateway(PaymentMethod.TELEGRAM_STARS)
-        payment_result = await gateway.create_payment(
-            order_id=str(order.id),
-            amount=product.price.amount,
-            currency=product.price.currency,
-            description=f"Order #{str(order.id)[:8]} - {product.name}",
-            user_id=str(user.id)
-        )
-
-        if payment_result.success:
-            # Create Telegram Stars invoice
-            prices = [LabeledPrice(label=product.name, amount=int(product.price.amount * 100))]  # Stars are in kopecks
-            
-            await callback.message.bot.send_invoice(
-                chat_id=callback.message.chat.id,
-                title=f"Purchase: {product.name}",
-                description=product.description,
-                payload=str(order.id),
-                provider_token="",  # Empty for Telegram Stars
-                currency="XTR",  # Telegram Stars currency
-                prices=prices,
-                start_parameter=f"order_{order.id}"
-            )
-            
-            await callback.message.edit_text(
-                f"⭐ **Telegram Stars Payment**\n\n"
-                f"📦 Product: {product.name}\n"
-                f"💰 Price: {int(product.price.amount)} Stars\n\n"
-                f"An invoice has been sent above. Complete the payment to receive your product!",
-                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                    [InlineKeyboardButton(text="🔙 Back to Product", callback_data=f"product:view:{product_id}")]
-                ]),
-                parse_mode="Markdown"
-            )
-        else:
-            await callback.answer("❌ Failed to create payment. Please try again.", show_alert=True)
-        
-        await callback.answer()
         
     except Exception as e:
-        await callback.answer(f"❌ Error: {str(e)}", show_alert=True)
+        import traceback
+        error_msg = f"❌ Error in Stars handler: {str(e)}\n{traceback.format_exc()}"
+        print(error_msg)  # Log to console
+        try:
+            await callback.answer(f"Error: {str(e)}")
+        except:
+            pass
 
 
 @payment_router.callback_query(F.data.startswith("payment:crypto:"))
-async def handle_crypto_payment(
-    callback: CallbackQuery,
-    user: Optional[User],
-    unit_of_work: "SqlAlchemyUnitOfWork",
-    session: "AsyncSession"
-):
-    """Handle cryptocurrency payment using middleware-provided session."""
+async def handle_crypto_payment(callback: CallbackQuery):
+    """Handle cryptocurrency payment - simplified for debugging."""
     try:
-        if not user:
-            await callback.answer("❌ User not found. Please use /start first.", show_alert=True)
-            return
-
-        # Get container and repository factories
-        from src.core.containers import container
-        product_repository_factory = container.product_repository_factory()
-        order_repository_factory = container.order_repository_factory()
-        payment_gateway_factory = container.payment_gateway_factory()
-        
-        # Create repositories using middleware session
-        product_repository = product_repository_factory(session)
-        order_repository = order_repository_factory(session)
-
-        product_id = callback.data.split(":")[-1]
-        product = await product_repository.get_by_id(product_id)
-        
-        if not product:
-            await callback.answer("❌ Product not found.", show_alert=True)
-            return
-
-        if not product.is_available:
-            await callback.answer("❌ Product is not available.", show_alert=True)
-            return
-
-        # Create order directly using repository
-        from src.domain.entities.order import Order
-        from src.domain.value_objects.money import Money
-        import uuid
-        
-        order = Order.create(
-            user_id=user.id,
-            product_id=uuid.UUID(product_id),
-            product_name=product.name,
-            product_description=product.description,
-            amount=Money(amount=product.price.amount, currency=product.price.currency),
-            quantity=1,
-            payment_method=PaymentMethod.CRYPTOMUS
+        await callback.answer("Testing Crypto payment handler...")
+        await callback.message.edit_text(
+            f"🔧 **Debug Mode - Crypto Payment**\n\n"
+            f"Handler called successfully!\n"
+            f"Data: {callback.data}\n"
+            f"User ID: {callback.from_user.id}\n\n"
+            f"This confirms Crypto payment routing works."
         )
-        
-        # Set expiration and save order
-        from datetime import datetime, timedelta
-        order.set_expiration(datetime.utcnow() + timedelta(minutes=30))
-        
-        # Reserve stock
-        if product.stock != -1:
-            product.decrease_stock(1)
-            await product_repository.update(product)
-        
-        order = await order_repository.add(order)
-
-        # Create payment using gateway
-        gateway = payment_gateway_factory.get_gateway(PaymentMethod.CRYPTOMUS)
-        payment_result = await gateway.create_payment(
-            order_id=str(order.id),
-            amount=product.price.amount,
-            currency=product.price.currency,
-            description=f"Order #{str(order.id)[:8]} - {product.name}",
-            user_id=str(user.id),
-            return_url=f"https://t.me/{(await callback.bot.get_me()).username}"
-        )
-
-        if payment_result.success and payment_result.payment_url:
-            await callback.message.edit_text(
-                f"💰 **Cryptocurrency Payment**\n\n"
-                f"📦 Product: {product.name}\n"
-                f"💵 Price: ${product.price.amount:.2f} {product.price.currency.upper()}\n\n"
-                f"**Supported Cryptocurrencies:**\n"
-                f"• Bitcoin (BTC)\n"
-                f"• Ethereum (ETH)\n"
-                f"• Tether (USDT)\n"
-                f"• And more...\n\n"
-                f"Click the button below to complete your payment:",
-                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                    [InlineKeyboardButton(text="💳 Pay with Crypto", url=payment_result.payment_url)],
-                    [InlineKeyboardButton(text="🔍 Check Payment", callback_data=f"check_payment_{order.id}")],
-                    [InlineKeyboardButton(text="🔙 Back to Product", callback_data=f"product:view:{product_id}")]
-                ]),
-                parse_mode="Markdown"
-            )
-        else:
-            await callback.answer("❌ Failed to create payment. Please try again.", show_alert=True)
-        
-        await callback.answer()
         
     except Exception as e:
-        await callback.answer(f"❌ Error: {str(e)}", show_alert=True)
+        import traceback
+        error_msg = f"❌ Error in Crypto handler: {str(e)}\n{traceback.format_exc()}"
+        print(error_msg)  # Log to console
+        try:
+            await callback.answer(f"Error: {str(e)}")
+        except:
+            pass

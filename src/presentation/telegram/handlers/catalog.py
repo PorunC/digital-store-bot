@@ -153,64 +153,26 @@ async def show_product_details(
 
 
 @catalog_router.callback_query(F.data.startswith("product:buy:"))
-async def initiate_purchase(
-    callback_query: CallbackQuery,
-    user: Optional[User],
-    session: "AsyncSession"
-) -> None:
-    """Initiate product purchase using middleware-provided session."""
+async def initiate_purchase(callback_query: CallbackQuery) -> None:
+    """Initiate product purchase - simplified for debugging."""
     try:
-        # Handle case when user context is not available
-        if user is None:
-            await callback_query.message.edit_text(
-                "⚠️ We're experiencing some technical issues. Please try again later."
-            )
-            await callback_query.answer()
-            return
-            
-        # Get container and repository factory
-        from src.core.containers import container
-        product_repository_factory = container.product_repository_factory()
-        product_repository = product_repository_factory(session)
-            
-        product_id = callback_query.data.split(":")[-1]
-        product = await product_repository.get_by_id(product_id)
-        
-        if not product:
-            await callback_query.answer("Product not found")
-            return
-            
-        if not product.is_available:
-            await callback_query.answer("Product is not available")
-            return
-            
-        # Check if user is blocked
-        if user.is_blocked:
-            await callback_query.answer("❌ Your account is blocked. Contact support.")
-            return
-            
-        text = f"""
-💳 <b>Purchase Confirmation</b>
-
-Product: {product.name}
-Price: {product.price.to_string()}
-Description: {product.description}
-
-Choose your payment method:
-"""
-        
-        keyboard = _create_payment_methods_keyboard(product_id)
-        
+        await callback_query.answer("Testing basic handler...")
         await callback_query.message.edit_text(
-            text=text,
-            reply_markup=keyboard,
-            parse_mode="HTML"
+            f"🔧 **Debug Mode**\n\n"
+            f"Handler called successfully!\n"
+            f"Data: {callback_query.data}\n"
+            f"User ID: {callback_query.from_user.id}\n\n"
+            f"This confirms the basic routing works."
         )
-        await callback_query.answer()
         
     except Exception as e:
-        logger.error(f"Error initiating purchase: {e}")
-        await callback_query.answer("❌ Error processing request")
+        import traceback
+        error_msg = f"❌ Error in handler: {str(e)}\n{traceback.format_exc()}"
+        print(error_msg)  # Log to console
+        try:
+            await callback_query.answer(f"Error: {str(e)}")
+        except:
+            pass
 
 
 def _create_categories_keyboard(categories: List[str]) -> InlineKeyboardMarkup:
