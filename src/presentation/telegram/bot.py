@@ -114,8 +114,8 @@ class TelegramBot:
         """Setup message handlers."""
         from src.presentation.telegram.handlers.start import start_router
         from src.presentation.telegram.handlers.catalog import catalog_router
-        from src.presentation.telegram.handlers.payment import payment_router  # Full-featured payment system
-        # from src.presentation.telegram.handlers.payment_simple import payment_simple_router  # Keep as fallback
+        # from src.presentation.telegram.handlers.payment import payment_router  # Disabled - causes errors
+        from src.presentation.telegram.handlers.payment_simple import payment_simple_router  # Stable simplified version
         from src.presentation.telegram.handlers.profile import profile_router
         from src.presentation.telegram.handlers.admin import admin_router
         from src.presentation.telegram.handlers.support import support_router
@@ -123,8 +123,8 @@ class TelegramBot:
         # Register routers
         self.dispatcher.include_router(start_router)
         self.dispatcher.include_router(catalog_router)
-        self.dispatcher.include_router(payment_router)  # Full-featured payment system
-        # self.dispatcher.include_router(payment_simple_router)  # Keep as fallback
+        # self.dispatcher.include_router(payment_router)  # Disabled - causes errors
+        self.dispatcher.include_router(payment_simple_router)  # Stable simplified version
         self.dispatcher.include_router(profile_router)
         self.dispatcher.include_router(admin_router)
         self.dispatcher.include_router(support_router)
