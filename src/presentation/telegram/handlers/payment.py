@@ -498,22 +498,30 @@ async def handle_payment_webhook(
 
 # Add missing payment method handlers
 @payment_router.callback_query(F.data.startswith("payment:stars:"))
-@inject
 async def handle_stars_payment(
     callback: CallbackQuery,
     user: Optional[User],
-    product_service: ProductApplicationService = Provide[ApplicationContainer.product_service],
-    order_service: OrderApplicationService = Provide[ApplicationContainer.order_service],
-    payment_service: PaymentApplicationService = Provide[ApplicationContainer.payment_service]
+    unit_of_work,
+    session
 ):
-    """Handle Telegram Stars payment."""
+    """Handle Telegram Stars payment using middleware-provided session."""
     try:
         if not user:
             await callback.answer("❌ User not found. Please use /start first.", show_alert=True)
             return
 
+        # Get container and repository factories
+        from src.core.containers import container
+        product_repository_factory = container.product_repository_factory()
+        order_repository_factory = container.order_repository_factory()
+        payment_gateway_factory = container.payment_gateway_factory()
+        
+        # Create repositories using middleware session
+        product_repository = product_repository_factory(session)
+        order_repository = order_repository_factory(session)
+
         product_id = callback.data.split(":")[-1]
-        product = await product_service.get_product_by_id(product_id)
+        product = await product_repository.get_by_id(product_id)
         
         if not product:
             await callback.answer("❌ Product not found.", show_alert=True)
@@ -523,17 +531,40 @@ async def handle_stars_payment(
             await callback.answer("❌ Product is not available.", show_alert=True)
             return
 
-        # Create order first
-        order = await order_service.create_order(
-            user_id=str(user.id),
-            product_id=product_id,
+        # Create order directly using repository
+        from src.domain.entities.order import Order
+        from src.domain.value_objects.money import Money
+        import uuid
+        
+        order = Order.create(
+            user_id=user.id,
+            product_id=uuid.UUID(product_id),
+            product_name=product.name,
+            product_description=product.description,
+            amount=Money(amount=product.price.amount, currency=product.price.currency),
+            quantity=1,
             payment_method=PaymentMethod.TELEGRAM_STARS
         )
+        
+        # Set expiration and save order
+        from datetime import datetime, timedelta
+        order.set_expiration(datetime.utcnow() + timedelta(minutes=30))
+        
+        # Reserve stock
+        if product.stock != -1:
+            product.decrease_stock(1)
+            await product_repository.update(product)
+        
+        order = await order_repository.add(order)
 
-        # Create Telegram Stars invoice
-        payment_result = await payment_service.create_payment(
+        # Create payment using gateway
+        gateway = payment_gateway_factory.get_gateway(PaymentMethod.TELEGRAM_STARS)
+        payment_result = await gateway.create_payment(
             order_id=str(order.id),
-            payment_method=PaymentMethod.TELEGRAM_STARS
+            amount=product.price.amount,
+            currency=product.price.currency,
+            description=f"Order #{str(order.id)[:8]} - {product.name}",
+            user_id=str(user.id)
         )
 
         if payment_result.success:
@@ -571,22 +602,30 @@ async def handle_stars_payment(
 
 
 @payment_router.callback_query(F.data.startswith("payment:crypto:"))
-@inject
 async def handle_crypto_payment(
     callback: CallbackQuery,
     user: Optional[User],
-    product_service: ProductApplicationService = Provide[ApplicationContainer.product_service],
-    order_service: OrderApplicationService = Provide[ApplicationContainer.order_service],
-    payment_service: PaymentApplicationService = Provide[ApplicationContainer.payment_service]
+    unit_of_work,
+    session
 ):
-    """Handle cryptocurrency payment."""
+    """Handle cryptocurrency payment using middleware-provided session."""
     try:
         if not user:
             await callback.answer("❌ User not found. Please use /start first.", show_alert=True)
             return
 
+        # Get container and repository factories
+        from src.core.containers import container
+        product_repository_factory = container.product_repository_factory()
+        order_repository_factory = container.order_repository_factory()
+        payment_gateway_factory = container.payment_gateway_factory()
+        
+        # Create repositories using middleware session
+        product_repository = product_repository_factory(session)
+        order_repository = order_repository_factory(session)
+
         product_id = callback.data.split(":")[-1]
-        product = await product_service.get_product_by_id(product_id)
+        product = await product_repository.get_by_id(product_id)
         
         if not product:
             await callback.answer("❌ Product not found.", show_alert=True)
@@ -596,17 +635,41 @@ async def handle_crypto_payment(
             await callback.answer("❌ Product is not available.", show_alert=True)
             return
 
-        # Create order first
-        order = await order_service.create_order(
-            user_id=str(user.id),
-            product_id=product_id,
+        # Create order directly using repository
+        from src.domain.entities.order import Order
+        from src.domain.value_objects.money import Money
+        import uuid
+        
+        order = Order.create(
+            user_id=user.id,
+            product_id=uuid.UUID(product_id),
+            product_name=product.name,
+            product_description=product.description,
+            amount=Money(amount=product.price.amount, currency=product.price.currency),
+            quantity=1,
             payment_method=PaymentMethod.CRYPTOMUS
         )
+        
+        # Set expiration and save order
+        from datetime import datetime, timedelta
+        order.set_expiration(datetime.utcnow() + timedelta(minutes=30))
+        
+        # Reserve stock
+        if product.stock != -1:
+            product.decrease_stock(1)
+            await product_repository.update(product)
+        
+        order = await order_repository.add(order)
 
-        # Create cryptocurrency payment
-        payment_result = await payment_service.create_payment(
+        # Create payment using gateway
+        gateway = payment_gateway_factory.get_gateway(PaymentMethod.CRYPTOMUS)
+        payment_result = await gateway.create_payment(
             order_id=str(order.id),
-            payment_method=PaymentMethod.CRYPTOMUS
+            amount=product.price.amount,
+            currency=product.price.currency,
+            description=f"Order #{str(order.id)[:8]} - {product.name}",
+            user_id=str(user.id),
+            return_url=f"https://t.me/{(await callback.bot.get_me()).username}"
         )
 
         if payment_result.success and payment_result.payment_url:

@@ -150,13 +150,12 @@ async def show_product_details(
 
 
 @catalog_router.callback_query(F.data.startswith("product:buy:"))
-@inject
 async def initiate_purchase(
     callback_query: CallbackQuery,
     user: Optional[User],
-    product_service: ProductApplicationService = Provide[ApplicationContainer.product_service]
+    session
 ) -> None:
-    """Initiate product purchase."""
+    """Initiate product purchase using middleware-provided session."""
     try:
         # Handle case when user context is not available
         if user is None:
@@ -166,8 +165,13 @@ async def initiate_purchase(
             await callback_query.answer()
             return
             
+        # Get container and repository factory
+        from src.core.containers import container
+        product_repository_factory = container.product_repository_factory()
+        product_repository = product_repository_factory(session)
+            
         product_id = callback_query.data.split(":")[-1]
-        product = await product_service.get_product_by_id(product_id)
+        product = await product_repository.get_by_id(product_id)
         
         if not product:
             await callback_query.answer("Product not found")
