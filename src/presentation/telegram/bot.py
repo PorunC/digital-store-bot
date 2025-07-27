@@ -48,6 +48,7 @@ class TelegramBot:
     async def _setup_middleware(self) -> None:
         """Setup bot middleware."""
         try:
+            from src.presentation.telegram.middleware.database import DatabaseMiddleware
             from src.presentation.telegram.middleware.user_context import UserContextMiddleware
             from src.presentation.telegram.middleware.localization import LocalizationMiddleware
             from src.presentation.telegram.middleware.throttling import ThrottlingMiddleware
@@ -72,8 +73,11 @@ class TelegramBot:
                 admin_ids=admin_ids
             ))
             
-            # Database middleware removed - using dependency injection instead
-            # Note: Database sessions are managed through dependency injection in services
+            # Database middleware - CRITICAL: Must be before UserContextMiddleware
+            # Provides database session and unit_of_work to handlers
+            db_manager = self.container.database_manager()
+            self.dispatcher.message.middleware(DatabaseMiddleware(db_manager))
+            self.dispatcher.callback_query.middleware(DatabaseMiddleware(db_manager))
             
             # Localization middleware with settings
             self.dispatcher.message.middleware(LocalizationMiddleware(
@@ -87,7 +91,7 @@ class TelegramBot:
                 default_locale=self.settings.i18n.default_locale
             ))
             
-            # User context middleware
+            # User context middleware - MUST be after DatabaseMiddleware
             self.dispatcher.message.middleware(UserContextMiddleware(self.container))
             self.dispatcher.callback_query.middleware(UserContextMiddleware(self.container))
             
@@ -95,7 +99,14 @@ class TelegramBot:
             logger.warning(f"Some middleware could not be loaded: {e}")
             # Setup minimal middleware for basic functionality
             try:
+                from src.presentation.telegram.middleware.database import DatabaseMiddleware
                 from src.presentation.telegram.middleware.user_context import UserContextMiddleware
+                
+                # Critical middleware for basic functionality
+                db_manager = self.container.database_manager()
+                self.dispatcher.message.middleware(DatabaseMiddleware(db_manager))
+                self.dispatcher.callback_query.middleware(DatabaseMiddleware(db_manager))
+                
                 self.dispatcher.message.middleware(UserContextMiddleware(self.container))
                 self.dispatcher.callback_query.middleware(UserContextMiddleware(self.container))
             except Exception as fallback_error:

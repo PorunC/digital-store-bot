@@ -2,11 +2,11 @@
 
 import logging
 from typing import Any, Awaitable, Callable, Dict, Optional
+from datetime import datetime
 
 from aiogram import BaseMiddleware
 from aiogram.types import TelegramObject, User as TelegramUser
 
-from src.application.services.user_service import UserApplicationService
 from src.domain.entities.user import User
 from src.core.containers import ApplicationContainer
 
@@ -28,8 +28,15 @@ class UserContextMiddleware(BaseMiddleware):
     ) -> Any:
         """Provide user context to the handler."""
         try:
-            # Get fresh user service from container (no caching to ensure correct async context)
-            user_service = self.container.user_service()
+            # Ensure we have database session and unit of work from DatabaseMiddleware
+            unit_of_work = data.get("unit_of_work")
+            if not unit_of_work:
+                logger.error("No unit_of_work found in middleware data - DatabaseMiddleware not properly configured")
+                # Continue without user context
+                data["user"] = None
+                data["user_id"] = None
+                data["telegram_user"] = data.get("event_from_user")
+                return await handler(event, data)
 
             # Extract Telegram user from event
             telegram_user = data.get("event_from_user")
@@ -37,8 +44,8 @@ class UserContextMiddleware(BaseMiddleware):
                 # Skip if no user context (e.g., channel posts)
                 return await handler(event, data)
 
-            # Get or create user
-            user = await self._get_or_create_user(telegram_user, data, user_service)
+            # Get or create user using the unit_of_work from DatabaseMiddleware
+            user = await self._get_or_create_user(telegram_user, data, unit_of_work)
             
             if user:
                 # Add user to handler data
@@ -48,7 +55,7 @@ class UserContextMiddleware(BaseMiddleware):
                 
                 # Record user activity
                 try:
-                    await user_service.record_user_activity(str(user.id))
+                    await self._record_user_activity(user.id, unit_of_work)
                 except Exception as e:
                     logger.warning(f"Failed to record user activity: {e}")
 
@@ -66,24 +73,29 @@ class UserContextMiddleware(BaseMiddleware):
         self,
         telegram_user: TelegramUser,
         data: Dict[str, Any],
-        user_service: UserApplicationService
+        unit_of_work
     ) -> Optional[User]:
-        """Get existing user or create new one."""
+        """Get existing user or create new one using direct repository access."""
         try:
+            # Get user repository factory from container
+            user_repository_factory = self.container.user_repository_factory()
+            
+            # Create repository with the session from unit_of_work
+            user_repository = user_repository_factory(unit_of_work.session)
+            
             # Try to get existing user
-            user = await user_service.get_user_by_telegram_id(telegram_user.id)
+            user = await user_repository.get_by_telegram_id(telegram_user.id)
             
             if user:
                 # Update user profile if needed
                 if (user.profile.first_name != telegram_user.first_name or
                     user.profile.username != telegram_user.username):
                     
-                    user = await user_service.update_user_profile(
-                        str(user.id),
-                        first_name=telegram_user.first_name,
-                        username=telegram_user.username,
-                        language_code=telegram_user.language_code
-                    )
+                    user.profile.first_name = telegram_user.first_name
+                    user.profile.username = telegram_user.username
+                    if telegram_user.language_code:
+                        user.profile.language_code = telegram_user.language_code
+                    user = await user_repository.update(user)
                 return user
 
             # Create new user
@@ -91,21 +103,59 @@ class UserContextMiddleware(BaseMiddleware):
             referrer_id = self._extract_referrer_id(data)
             invite_source = self._extract_invite_source(data)
 
-            user = await user_service.register_user(
+            # Convert referrer_id if it's not a UUID
+            referrer_uuid = None
+            if referrer_id:
+                import uuid
+                try:
+                    # Try direct UUID conversion
+                    referrer_uuid = uuid.UUID(referrer_id)
+                except ValueError:
+                    # If not UUID, try to find user by telegram_id
+                    try:
+                        referrer_user = await user_repository.get_by_telegram_id(int(referrer_id))
+                        if referrer_user:
+                            referrer_uuid = referrer_user.id
+                    except (ValueError, TypeError):
+                        referrer_uuid = None
+
+            # Create new user entity
+            user = User.create(
                 telegram_id=telegram_user.id,
                 first_name=telegram_user.first_name,
                 username=telegram_user.username,
                 language_code=telegram_user.language_code or "en",
-                referrer_id=referrer_id,
+                referrer_id=referrer_uuid,
                 invite_source=invite_source
             )
+
+            # Save to database
+            user = await user_repository.add(user)
 
             logger.info(f"New user registered: {telegram_user.id} ({telegram_user.first_name})")
             return user
 
         except Exception as e:
-            logger.error(f"Error getting/creating user {telegram_user.id}: {e}")
+            logger.error(f"Error getting/creating user {telegram_user.id}: {e}", exc_info=True)
             return None
+
+    async def _record_user_activity(self, user_id, unit_of_work) -> None:
+        """Record user activity using direct repository access."""
+        try:
+            # Get user repository factory from container
+            user_repository_factory = self.container.user_repository_factory()
+            
+            # Create repository with the session from unit_of_work
+            user_repository = user_repository_factory(unit_of_work.session)
+            
+            # Get user and update last activity
+            user = await user_repository.get_by_id(str(user_id))
+            if user:
+                user.record_activity()
+                await user_repository.update(user)
+                
+        except Exception as e:
+            logger.warning(f"Failed to record user activity for {user_id}: {e}")
 
     def _extract_referrer_id(self, data: Dict[str, Any]) -> Optional[str]:
         """Extract referrer ID from start parameter."""
