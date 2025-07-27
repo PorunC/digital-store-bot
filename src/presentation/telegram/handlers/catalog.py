@@ -21,135 +21,62 @@ catalog_router = Router(name="catalog")
 
 
 @catalog_router.callback_query(F.data == "show_catalog")
-@inject
-async def show_catalog_alias(
-    callback_query: CallbackQuery,
-    user: Optional[User],
-    product_service: ProductApplicationService = Provide[ApplicationContainer.product_service],
-    settings: Settings = Provide[ApplicationContainer.settings]
-) -> None:
-    """Show catalog (alias for catalog:main)."""
-    await show_catalog_main(callback_query, user, product_service, settings)
+async def show_catalog_alias(callback_query: CallbackQuery) -> None:
+    """Show catalog (alias for catalog:main) - simplified."""
+    await callback_query.answer("Debug: show_catalog called")
+    await callback_query.message.edit_text("🔧 Debug: show_catalog handler works")
 
 
 @catalog_router.callback_query(F.data == "catalog:main")
-@inject
-async def show_catalog_main(
-    callback_query: CallbackQuery,
-    user: Optional[User],
-    product_service: ProductApplicationService = Provide[ApplicationContainer.product_service],
-    settings: Settings = Provide[ApplicationContainer.settings]
-) -> None:
-    """Show main catalog with categories."""
-    try:
-        # Handle case when user context is not available
-        if user is None:
-            await callback_query.message.edit_text(
-                "⚠️ We're experiencing some technical issues. Please try again in a moment."
-            )
-            await callback_query.answer()
-            return
-            
-        categories = await product_service.get_product_categories()
-        
-        text = f"""
-🛍️ <b>Product Catalog</b>
-
-Browse our digital products by category:
-"""
-        
-        keyboard = _create_categories_keyboard(categories)
-        
-        await callback_query.message.edit_text(
-            text=text,
-            reply_markup=keyboard,
-            parse_mode="HTML"
-        )
-        await callback_query.answer()
-        
-    except Exception as e:
-        logger.error(f"Error showing catalog: {e}")
-        await callback_query.answer("❌ Error loading catalog")
+async def show_catalog_main(callback_query: CallbackQuery) -> None:
+    """Show main catalog with categories - simplified."""
+    await callback_query.answer("Debug: catalog:main called")
+    await callback_query.message.edit_text("🔧 Debug: catalog:main handler works")
 
 
 @catalog_router.callback_query(F.data.startswith("catalog:category:"))
-@inject
-async def show_category_products(
-    callback_query: CallbackQuery,
-    user: Optional[User],
-    product_service: ProductApplicationService = Provide[ApplicationContainer.product_service]
-) -> None:
-    """Show products in a specific category."""
-    try:
-        # Handle case when user context is not available
-        if user is None:
-            await callback_query.message.edit_text(
-                "⚠️ We're experiencing some technical issues. Please try again in a moment."
-            )
-            await callback_query.answer()
-            return
-            
-        category_name = callback_query.data.split(":")[-1]
-        category = ProductCategory(category_name)
-        
-        products = await product_service.get_products_by_category(category)
-        
-        if not products:
-            await callback_query.answer("No products found in this category")
-            return
-            
-        text = f"🏷️ <b>{category.title()} Products</b>\n\n"
-        keyboard = _create_products_keyboard(products, category_name)
-        
-        await callback_query.message.edit_text(
-            text=text,
-            reply_markup=keyboard,
-            parse_mode="HTML"
-        )
-        await callback_query.answer()
-        
-    except Exception as e:
-        logger.error(f"Error showing category products: {e}")
-        await callback_query.answer("❌ Error loading products")
+async def show_category_products(callback_query: CallbackQuery) -> None:
+    """Show products in a specific category - simplified."""
+    await callback_query.answer("Debug: category called")
+    await callback_query.message.edit_text(f"🔧 Debug: category handler works - {callback_query.data}")
 
 
 @catalog_router.callback_query(F.data.startswith("product:view:"))
-@inject
-async def show_product_details(
-    callback_query: CallbackQuery,
-    user: Optional[User],
-    product_service: ProductApplicationService = Provide[ApplicationContainer.product_service]
-) -> None:
-    """Show detailed product information."""
+async def show_product_details(callback_query: CallbackQuery) -> None:
+    """Show detailed product information - simplified."""
     try:
-        # Handle case when user context is not available
-        if user is None:
-            await callback_query.message.edit_text(
-                "⚠️ We're experiencing some technical issues. Please try again in a moment."
-            )
-            await callback_query.answer()
-            return
-            
-        product_id = callback_query.data.split(":")[-1]
-        product = await product_service.get_product_by_id(product_id)
+        await callback_query.answer("Debug: product view called")
         
-        if not product:
-            await callback_query.answer("Product not found")
-            return
-            
-        text = _format_product_details(product, user)
-        keyboard = _create_product_details_keyboard(product, user)
+        product_id = callback_query.data.split(":")[-1]
+        
+        # Create a simple test product view with buy button
+        from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(
+                text=f"💳 Buy for $10.00 USD", 
+                callback_data=f"product:buy:{product_id}"
+            )],
+            [InlineKeyboardButton(text="🔙 Back", callback_data="catalog:main")]
+        ])
         
         await callback_query.message.edit_text(
-            text=text,
+            f"🔧 **Debug Product Details**\n\n"
+            f"Product ID: {product_id}\n"
+            f"This is a test product view.\n\n"
+            f"Try clicking the Buy button below:",
             reply_markup=keyboard,
-            parse_mode="HTML"
+            parse_mode="Markdown"
         )
-        await callback_query.answer()
         
     except Exception as e:
-        logger.error(f"Error showing product details: {e}")
-        await callback_query.answer("❌ Error loading product")
+        import traceback
+        error_msg = f"❌ Error in product details: {str(e)}\n{traceback.format_exc()}"
+        print(error_msg)
+        try:
+            await callback_query.answer(f"Error: {str(e)}")
+        except:
+            pass
 
 
 @catalog_router.callback_query(F.data.startswith("product:buy:"))
