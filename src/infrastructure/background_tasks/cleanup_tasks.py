@@ -14,6 +14,7 @@ from src.infrastructure.notifications.notification_service import (
     NotificationChannel
 )
 from src.core.containers import ApplicationContainer
+from dependency_injector.wiring import inject, Provide
 
 logger = logging.getLogger(__name__)
 
@@ -21,20 +22,22 @@ logger = logging.getLogger(__name__)
 class CleanupTasks:
     """Background tasks for system cleanup operations."""
     
-    def __init__(self, container: ApplicationContainer):
-        self.order_service: OrderApplicationService = container.order_service()
-        self.user_service: UserApplicationService = container.user_service()
-        self.promocode_service: PromocodeApplicationService = container.promocode_service()
-        self.notification_service: NotificationService = container.notification_service()
+    def __init__(self):
+        """Initialize CleanupTasks without service injection to avoid async context issues."""
+        pass
     
-    async def cleanup_expired_orders(self) -> dict:
+    @inject
+    async def cleanup_expired_orders(
+        self,
+        order_service: OrderApplicationService = Provide[ApplicationContainer.order_service]
+    ) -> dict:
         """Clean up orders that have been expired for more than 30 days."""
         try:
             logger.info("Starting expired orders cleanup")
             
             # Get orders expired for more than 30 days
             cutoff_date = datetime.utcnow() - timedelta(days=30)
-            cleanup_count = await self.order_service.cleanup_old_expired_orders(cutoff_date)
+            cleanup_count = await order_service.cleanup_old_expired_orders(cutoff_date)
             
             result = {
                 "status": "success",
@@ -54,14 +57,18 @@ class CleanupTasks:
                 "processed_at": datetime.utcnow().isoformat()
             }
     
-    async def cleanup_expired_promocodes(self) -> dict:
+    @inject
+    async def cleanup_expired_promocodes(
+        self,
+        promocode_service: PromocodeApplicationService = Provide[ApplicationContainer.promocode_service]
+    ) -> dict:
         """Clean up expired promocodes that are no longer needed."""
         try:
             logger.info("Starting expired promocodes cleanup")
             
             # Clean up promocodes expired for more than 90 days
             cutoff_date = datetime.utcnow() - timedelta(days=90)
-            cleanup_count = await self.promocode_service.cleanup_old_expired_codes(cutoff_date)
+            cleanup_count = await promocode_service.cleanup_old_expired_codes(cutoff_date)
             
             result = {
                 "status": "success",
@@ -81,14 +88,18 @@ class CleanupTasks:
                 "processed_at": datetime.utcnow().isoformat()
             }
     
-    async def cleanup_inactive_users(self) -> dict:
+    @inject
+    async def cleanup_inactive_users(
+        self,
+        user_service: UserApplicationService = Provide[ApplicationContainer.user_service]
+    ) -> dict:
         """Archive users who have been inactive for extended periods."""
         try:
             logger.info("Starting inactive users cleanup")
             
             # Get users inactive for more than 365 days
             cutoff_date = datetime.utcnow() - timedelta(days=365)
-            archived_count = await self.user_service.archive_inactive_users(cutoff_date)
+            archived_count = await user_service.archive_inactive_users(cutoff_date)
             
             result = {
                 "status": "success",
@@ -108,6 +119,7 @@ class CleanupTasks:
                 "processed_at": datetime.utcnow().isoformat()
             }
     
+    @inject
     async def cleanup_old_logs(self) -> dict:
         """Clean up old log files and temporary data."""
         try:
@@ -133,6 +145,7 @@ class CleanupTasks:
                 "processed_at": datetime.utcnow().isoformat()
             }
     
+    @inject
     async def optimize_database(self) -> dict:
         """Perform database optimization operations."""
         try:

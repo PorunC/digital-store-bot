@@ -22,36 +22,31 @@ logger = logging.getLogger(__name__)
 class PaymentTasks:
     """Background tasks for payment processing."""
     
+    def __init__(self):
+        """Initialize PaymentTasks without service injection to avoid async context issues."""
+        pass
+    
     @inject
-    def __init__(
+    async def process_expired_orders(
         self,
         order_service: OrderApplicationService = Provide[ApplicationContainer.order_service],
-        payment_service: PaymentApplicationService = Provide[ApplicationContainer.payment_service],
         user_service: UserApplicationService = Provide[ApplicationContainer.user_service],
-        notification_service: NotificationService = Provide[ApplicationContainer.notification_service],
-        payment_gateway_factory = Provide[ApplicationContainer.payment_gateway_factory]
-    ):
-        self.order_service = order_service
-        self.payment_service = payment_service
-        self.user_service = user_service
-        self.notification_service = notification_service
-        self.payment_gateway_factory = payment_gateway_factory
-    
-    async def process_expired_orders(self) -> dict:
+        notification_service: NotificationService = Provide[ApplicationContainer.notification_service]
+    ) -> dict:
         """Process orders that have expired without payment."""
         try:
             logger.info("Starting expired orders processing")
             
             # Get and process expired orders
-            expired_orders = await self.order_service.process_expired_orders()
+            expired_orders = await order_service.process_expired_orders()
             
             # Send notifications for expired orders
             notification_count = 0
             for order in expired_orders:
                 try:
-                    user = await self.user_service.get_user_by_id(str(order.user_id))
+                    user = await user_service.get_user_by_id(str(order.user_id))
                     if user:
-                        await self.notification_service.send_order_expired_notification(
+                        await notification_service.send_order_expired_notification(
                             user=user,
                             order=order,
                             channels=[NotificationChannel.TELEGRAM]
@@ -78,14 +73,21 @@ class PaymentTasks:
                 "timestamp": datetime.utcnow().isoformat()
             }
     
-    async def check_pending_payments(self) -> dict:
+    @inject
+    async def check_pending_payments(
+        self,
+        order_service: OrderApplicationService = Provide[ApplicationContainer.order_service],
+        payment_service: PaymentApplicationService = Provide[ApplicationContainer.payment_service],
+        user_service: UserApplicationService = Provide[ApplicationContainer.user_service],
+        notification_service: NotificationService = Provide[ApplicationContainer.notification_service]
+    ) -> dict:
         """Check status of pending payments with external gateways."""
         try:
             logger.info("Starting pending payments check")
             
             # Get pending orders
             from src.domain.entities.order import OrderStatus
-            pending_orders = await self.order_service.get_orders_by_status(OrderStatus.PENDING)
+            pending_orders = await order_service.get_orders_by_status(OrderStatus.PENDING)
             
             checked_count = 0
             updated_count = 0
@@ -96,22 +98,22 @@ class PaymentTasks:
                 
                 try:
                     # Check payment status
-                    status_info = await self.payment_service.check_payment_status(str(order.id))
+                    status_info = await payment_service.check_payment_status(str(order.id))
                     checked_count += 1
                     
                     # Update order if status changed
                     if status_info.get("status") == "paid" and order.status == OrderStatus.PENDING:
-                        await self.order_service.mark_as_paid(
+                        await order_service.mark_as_paid(
                             str(order.id),
                             status_info.get("external_payment_id")
                         )
-                        await self.order_service.mark_as_completed(str(order.id))
+                        await order_service.mark_as_completed(str(order.id))
                         updated_count += 1
                         
                         # Send success notification
-                        user = await self.user_service.get_user_by_id(str(order.user_id))
+                        user = await user_service.get_user_by_id(str(order.user_id))
                         if user:
-                            await self.notification_service.send_payment_success_notification(
+                            await notification_service.send_payment_success_notification(
                                 user=user,
                                 order=order,
                                 channels=[NotificationChannel.TELEGRAM]
@@ -140,6 +142,7 @@ class PaymentTasks:
                 "timestamp": datetime.utcnow().isoformat()
             }
     
+    @inject
     async def cleanup_old_payment_data(self) -> dict:
         """Clean up old payment data and logs."""
         try:
@@ -171,15 +174,20 @@ class PaymentTasks:
                 "timestamp": datetime.utcnow().isoformat()
             }
     
-    async def generate_payment_reports(self) -> dict:
+    @inject
+    async def generate_payment_reports(
+        self,
+        order_service: OrderApplicationService = Provide[ApplicationContainer.order_service],
+        payment_service: PaymentApplicationService = Provide[ApplicationContainer.payment_service]
+    ) -> dict:
         """Generate payment and revenue reports."""
         try:
             logger.info("Starting payment reports generation")
             
             # Get revenue statistics
-            revenue_stats = await self.order_service.get_revenue_stats()
-            order_stats = await self.order_service.get_order_stats()
-            payment_stats = await self.payment_service.get_payment_statistics()
+            revenue_stats = await order_service.get_revenue_stats()
+            order_stats = await order_service.get_order_stats()
+            payment_stats = await payment_service.get_payment_statistics()
             
             # Generate daily report data
             report_data = {
@@ -211,7 +219,12 @@ class PaymentTasks:
                 "timestamp": datetime.utcnow().isoformat()
             }
     
-    async def monitor_payment_gateways(self) -> dict:
+    @inject
+    async def monitor_payment_gateways(
+        self,
+        payment_gateway_factory = Provide[ApplicationContainer.payment_gateway_factory],
+        notification_service: NotificationService = Provide[ApplicationContainer.notification_service]
+    ) -> dict:
         """Monitor payment gateway health and connectivity."""
         try:
             logger.info("Starting payment gateway monitoring")
@@ -222,7 +235,7 @@ class PaymentTasks:
             from src.domain.entities.order import PaymentMethod
             from src.infrastructure.external.payment_gateways.factory import PaymentGatewayFactory
             
-            factory = self.payment_gateway_factory
+            factory = payment_gateway_factory
             
             for method in PaymentMethod:
                 try:
@@ -250,7 +263,7 @@ class PaymentTasks:
             ]
             
             if offline_gateways:
-                await self.notification_service.send_admin_alert(
+                await notification_service.send_admin_alert(
                     alert_type="payment_gateway_offline",
                     message=f"Payment gateways offline: {', '.join(offline_gateways)}",
                     metadata={"offline_gateways": offline_gateways}
@@ -275,6 +288,7 @@ class PaymentTasks:
                 "timestamp": datetime.utcnow().isoformat()
             }
     
+    @inject
     async def reconcile_payments(self) -> dict:
         """Reconcile payments between internal records and gateway records."""
         try:

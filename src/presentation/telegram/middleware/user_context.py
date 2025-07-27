@@ -8,7 +8,7 @@ from aiogram import BaseMiddleware
 from aiogram.types import TelegramObject, User as TelegramUser
 
 from src.domain.entities.user import User
-from src.core.containers import ApplicationContainer
+from src.infrastructure.database.repositories.user_repository import SqlAlchemyUserRepository
 
 logger = logging.getLogger(__name__)
 
@@ -16,9 +16,9 @@ logger = logging.getLogger(__name__)
 class UserContextMiddleware(BaseMiddleware):
     """Middleware to automatically manage user context."""
 
-    def __init__(self, container: ApplicationContainer):
-        self.container = container
-        # Removed service caching to ensure fresh instances with correct async context
+    def __init__(self):
+        """Initialize UserContextMiddleware without container dependency to avoid async context issues."""
+        pass
 
     async def __call__(
         self,
@@ -77,11 +77,8 @@ class UserContextMiddleware(BaseMiddleware):
     ) -> Optional[User]:
         """Get existing user or create new one using direct repository access."""
         try:
-            # Get user repository factory from container
-            user_repository_factory = self.container.user_repository_factory()
-            
-            # Create repository with the session from unit_of_work
-            user_repository = user_repository_factory(unit_of_work.session)
+            # Create repository directly with the session from unit_of_work
+            user_repository = SqlAlchemyUserRepository(unit_of_work.session)
             
             # Try to get existing user
             user = await user_repository.get_by_telegram_id(telegram_user.id)
@@ -142,11 +139,8 @@ class UserContextMiddleware(BaseMiddleware):
     async def _record_user_activity(self, user_id, unit_of_work) -> None:
         """Record user activity using direct repository access."""
         try:
-            # Get user repository factory from container
-            user_repository_factory = self.container.user_repository_factory()
-            
-            # Create repository with the session from unit_of_work
-            user_repository = user_repository_factory(unit_of_work.session)
+            # Create repository directly with the session from unit_of_work
+            user_repository = SqlAlchemyUserRepository(unit_of_work.session)
             
             # Get user and update last activity
             user = await user_repository.get_by_id(str(user_id))

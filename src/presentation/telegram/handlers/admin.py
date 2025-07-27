@@ -23,7 +23,8 @@ from src.domain.entities.product import ProductCategory, ProductStatus
 from src.domain.entities.promocode import PromocodeType
 from src.domain.entities.user import SubscriptionType
 from src.domain.value_objects.product_info import DeliveryType
-from src.core.containers import container
+from src.domain.repositories.base import UnitOfWork
+from src.infrastructure.configuration.settings import Settings
 from dependency_injector.wiring import inject, Provide
 from src.core.containers import ApplicationContainer
 
@@ -650,7 +651,12 @@ async def send_broadcast(
 
 
 @admin_router.callback_query(F.data == "admin_reload_products")
-async def reload_products(callback: CallbackQuery):
+@inject
+async def reload_products(
+    callback: CallbackQuery,
+    unit_of_work: UnitOfWork = Provide[ApplicationContainer.unit_of_work],
+    settings: Settings = Provide[ApplicationContainer.settings]
+):
     """Reload products from JSON configuration."""
     if not is_admin(callback.from_user.id):
         await callback.answer("❌ Access denied", show_alert=True)
@@ -664,15 +670,9 @@ async def reload_products(callback: CallbackQuery):
 
     try:
         from src.application.services.product_loader_service import ProductLoaderService
-        from src.domain.repositories.base import UnitOfWork
-        from src.infrastructure.configuration import get_settings
-        
-        # Get dependencies
-        uow = container.unit_of_work()
-        settings = get_settings()
         
         # Create loader service
-        loader_service = ProductLoaderService(uow, settings)
+        loader_service = ProductLoaderService(unit_of_work, settings)
         
         # Reload products (this will replace existing ones)
         loaded_count = await loader_service.reload_products()

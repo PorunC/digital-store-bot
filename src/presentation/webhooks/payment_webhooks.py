@@ -16,8 +16,9 @@ from src.application.services import (
 )
 from src.domain.entities.order import PaymentMethod
 from src.infrastructure.external.payment_gateways.factory import PaymentGatewayFactory
-from src.core.containers import container
+from src.core.containers import ApplicationContainer
 from src.shared.events import event_bus
+from dependency_injector.wiring import inject, Provide
 
 logger = logging.getLogger(__name__)
 
@@ -111,20 +112,19 @@ async def handle_telegram_stars_webhook(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+@inject
 async def process_payment_webhook(
     payment_method: PaymentMethod,
     webhook_data: Dict[str, Any],
-    signature: Optional[str] = None
+    signature: Optional[str] = None,
+    payment_service: PaymentApplicationService = Provide[ApplicationContainer.payment_service],
+    order_service: OrderApplicationService = Provide[ApplicationContainer.order_service],
+    user_service: UserApplicationService = Provide[ApplicationContainer.user_service],
+    gateway_factory: PaymentGatewayFactory = Provide[ApplicationContainer.payment_gateway_factory]
 ) -> Optional[str]:
     """Process payment webhook data."""
     try:
-        # Get services
-        payment_service: PaymentApplicationService = container.payment_service()
-        order_service: OrderApplicationService = container.order_service()
-        user_service: UserApplicationService = container.user_service()
-        
         # Get payment gateway
-        gateway_factory: PaymentGatewayFactory = container.payment_gateway_factory()
         gateway = gateway_factory.get_gateway(payment_method)
         
         # Validate webhook signature
@@ -187,16 +187,19 @@ async def process_payment_webhook(
         return None
 
 
-async def send_payment_success_notification(order, webhook_result):
+@inject
+async def send_payment_success_notification(
+    order,
+    webhook_result,
+    user_service: UserApplicationService = Provide[ApplicationContainer.user_service]
+):
     """Send payment success notification to user."""
     try:
         from aiogram import Bot
-        from src.core.containers import container
         
         # Get bot instance (would need to be properly configured)
         # bot: Bot = container.Bot()
         
-        user_service: UserApplicationService = container.user_service()
         user = await user_service.get_user_by_id(str(order.user_id))
         
         if not user:
@@ -227,10 +230,14 @@ async def send_payment_success_notification(order, webhook_result):
         logger.error(f"Error sending payment success notification: {e}")
 
 
-async def send_payment_failure_notification(order, webhook_result):
+@inject
+async def send_payment_failure_notification(
+    order,
+    webhook_result,
+    user_service: UserApplicationService = Provide[ApplicationContainer.user_service]
+):
     """Send payment failure notification to user."""
     try:
-        user_service: UserApplicationService = container.user_service()
         user = await user_service.get_user_by_id(str(order.user_id))
         
         if not user:

@@ -6,6 +6,10 @@ from typing import Optional
 from aiogram import Router, F
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 
+from dependency_injector.wiring import inject, Provide
+from src.core.containers import ApplicationContainer
+from src.infrastructure.external.payment_gateways.factory import PaymentGatewayFactory
+
 logger = logging.getLogger(__name__)
 payment_simple_router = Router()
 
@@ -137,7 +141,12 @@ async def pay_with_stars(callback: CallbackQuery, unit_of_work):
         
 
 @payment_simple_router.callback_query(F.data.startswith("pay_crypto_"))
-async def pay_with_crypto(callback: CallbackQuery, unit_of_work):
+@inject
+async def pay_with_crypto(
+    callback: CallbackQuery,
+    unit_of_work,
+    gateway_factory: PaymentGatewayFactory = Provide[ApplicationContainer.payment_gateway_factory]
+):
     """Process payment with cryptocurrency."""
     try:
         order_id = callback.data.replace("pay_crypto_", "")
@@ -151,13 +160,9 @@ async def pay_with_crypto(callback: CallbackQuery, unit_of_work):
             await callback.answer("❌ Order not found.", show_alert=True)
             return
 
-        # Get payment gateway factory from container
-        from src.core.containers import container
-        payment_gateway_factory = container.payment_gateway_factory()
-        
         # Create Cryptomus payment
         from src.domain.entities.order import PaymentMethod
-        gateway = payment_gateway_factory.get_gateway(PaymentMethod.CRYPTOMUS)
+        gateway = gateway_factory.get_gateway(PaymentMethod.CRYPTOMUS)
         
         # Create payment
         bot_username = (await callback.bot.get_me()).username

@@ -1,5 +1,6 @@
 """User profile management handlers."""
 
+import logging
 from datetime import datetime
 from typing import Optional
 
@@ -20,6 +21,7 @@ from src.domain.entities.user import User, SubscriptionType
 from dependency_injector.wiring import inject, Provide
 from src.core.containers import ApplicationContainer
 
+logger = logging.getLogger(__name__)
 profile_router = Router()
 
 
@@ -220,41 +222,45 @@ async def change_language(callback: CallbackQuery, state: FSMContext):
 async def set_language(
     callback: CallbackQuery,
     user: Optional[User],
-    user_service: UserApplicationService = Provide[ApplicationContainer.user_service]
+    user_service: UserApplicationService = Provide[ApplicationContainer.user_service],
+    referral_service: ReferralApplicationService = Provide[ApplicationContainer.referral_service],
+    order_service: OrderApplicationService = Provide[ApplicationContainer.order_service]
 ):
     """Set user language."""
     
-    language_code = callback.data.replace("set_lang_", "")
-    
-    if not user:
-        await callback.answer("❌ User not found. Please use /start first.", show_alert=True)
-        return
-    
-    await user_service.update_user_profile(
-        str(user.id),
-        language_code=language_code
-    )
-    
-    language_names = {
-        "en": "🇺🇸 English",
-        "ru": "🇷🇺 Russian",
-        "zh": "🇨🇳 Chinese",
-        "es": "🇪🇸 Spanish",
-        "de": "🇩🇪 German",
-        "fr": "🇫🇷 French"
-    }
-    
-    lang_name = language_names.get(language_code, language_code)
-    await callback.answer(f"✅ Language changed to {lang_name}")
-    
-    # Refresh profile by calling internal content function directly
-    # Get the required services from container
-    from src.core.containers import container
-    user_service = container.user_service()
-    referral_service = container.referral_service()
-    order_service = container.order_service()
-    
-    await _show_profile_content(callback, user, user_service, referral_service, order_service)
+    try:
+        language_code = callback.data.replace("set_lang_", "")
+        
+        if not user:
+            await callback.answer("❌ User not found. Please use /start first.", show_alert=True)
+            return
+        
+        # Update user language
+        await user_service.update_user_profile(
+            str(user.id),
+            language_code=language_code
+        )
+        
+        language_names = {
+            "en": "🇺🇸 English",
+            "ru": "🇷🇺 Russian",
+            "zh": "🇨🇳 Chinese",
+            "es": "🇪🇸 Spanish",
+            "de": "🇩🇪 German",
+            "fr": "🇫🇷 French"
+        }
+        
+        lang_name = language_names.get(language_code, language_code)
+        await callback.answer(f"✅ Language changed to {lang_name}")
+        
+        # Refresh profile with updated language - use already injected services
+        await _show_profile_content(callback, user, user_service, referral_service, order_service)
+        
+    except Exception as e:
+        import traceback
+        error_msg = f"Error setting language: {str(e)}\n{traceback.format_exc()}"
+        logger.error(error_msg)
+        await callback.answer(f"❌ Error: {str(e)}", show_alert=True)
 
 
 @profile_router.callback_query(F.data == "profile_referrals")

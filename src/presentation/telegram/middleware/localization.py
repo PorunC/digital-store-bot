@@ -8,8 +8,7 @@ from aiogram import BaseMiddleware
 from aiogram.types import Update
 from fluent.runtime import FluentLocalization, FluentResourceLoader
 
-from src.application.services import UserApplicationService
-from src.core.containers import ApplicationContainer
+from src.infrastructure.database.repositories.user_repository import SqlAlchemyUserRepository
 
 logger = logging.getLogger(__name__)
 
@@ -19,8 +18,7 @@ class LocalizationMiddleware(BaseMiddleware):
     Middleware for handling multi-language localization.
     """
     
-    def __init__(self, container: ApplicationContainer, locales_path: str = "locales", default_locale: str = "en"):
-        self.container = container
+    def __init__(self, locales_path: str = "locales", default_locale: str = "en"):
         self.locales_path = Path(locales_path)
         self.default_locale = default_locale
         self.locales: Dict[str, FluentLocalization] = {}
@@ -52,7 +50,7 @@ class LocalizationMiddleware(BaseMiddleware):
         """Process update through localization middleware."""
         
         # Get user language preference
-        user_locale = await self._get_user_locale(event)
+        user_locale = await self._get_user_locale(event, data)
         
         # Create localization instance
         l10n = self._get_localization(user_locale)
@@ -195,34 +193,25 @@ ticket-created = ✅ Support ticket created
         }
         logger.info("Using fallback texts for localization")
     
-    async def _get_user_locale(self, event: Update) -> str:
+    async def _get_user_locale(self, event: Update, data: Dict[str, Any]) -> str:
         """Get user's preferred locale."""
         try:
-            # Get user from database
-            user_service: UserApplicationService = self.container.user_service()
-            
-            user_id = None
             telegram_locale = None
             
-            # Extract user info from different update types
+            # First try to get user from middleware data (if UserContextMiddleware ran first)
+            user = data.get("user")
+            if user and hasattr(user, 'profile') and user.profile.language_code:
+                return user.profile.language_code
+            
+            # Extract user info from different update types for Telegram locale fallback
             if hasattr(event, 'message') and event.message and hasattr(event.message, 'from_user') and event.message.from_user:
-                user_id = event.message.from_user.id
                 telegram_locale = event.message.from_user.language_code
             elif hasattr(event, 'callback_query') and event.callback_query and hasattr(event.callback_query, 'from_user') and event.callback_query.from_user:
-                user_id = event.callback_query.from_user.id
                 telegram_locale = event.callback_query.from_user.language_code
             elif hasattr(event, 'inline_query') and event.inline_query and hasattr(event.inline_query, 'from_user') and event.inline_query.from_user:
-                user_id = event.inline_query.from_user.id
                 telegram_locale = event.inline_query.from_user.language_code
             elif hasattr(event, 'pre_checkout_query') and event.pre_checkout_query and hasattr(event.pre_checkout_query, 'from_user') and event.pre_checkout_query.from_user:
-                user_id = event.pre_checkout_query.from_user.id
                 telegram_locale = event.pre_checkout_query.from_user.language_code
-            
-            if user_id:
-                user = await user_service.get_user_by_telegram_id(user_id)
-                if user and user.profile.language_code:
-                    # Use user's saved preference
-                    return user.profile.language_code
             
             # Fallback to Telegram's language
             if telegram_locale and telegram_locale in self.supported_locales:
