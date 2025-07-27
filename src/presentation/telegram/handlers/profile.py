@@ -8,6 +8,7 @@ from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
+from aiogram.exceptions import TelegramBadRequest
 
 from src.application.services import (
     UserApplicationService,
@@ -26,20 +27,14 @@ class ProfileStates(StatesGroup):
     waiting_for_language = State()
 
 
-@profile_router.callback_query(F.data == "profile:main")
-@inject
-async def show_profile_callback(
+async def _show_profile_content(
     callback: CallbackQuery,
-    user: Optional[User],
-    user_service: UserApplicationService = Provide[ApplicationContainer.user_service],
-    referral_service: ReferralApplicationService = Provide[ApplicationContainer.referral_service],
-    order_service: OrderApplicationService = Provide[ApplicationContainer.order_service]
+    user: User,
+    user_service: UserApplicationService,
+    referral_service: ReferralApplicationService,
+    order_service: OrderApplicationService
 ):
-    """Show user profile information via callback."""
-    if not user:
-        await callback.answer("❌ User not found. Please use /start first.", show_alert=True)
-        return
-
+    """Internal function to show profile content."""
     # Get user statistics
     user_orders = await order_service.get_user_orders(str(user.id))
     referral_stats = await referral_service.get_referral_statistics(str(user.id))
@@ -81,8 +76,33 @@ async def show_profile_callback(
         [InlineKeyboardButton(text="🔙 Back to Main", callback_data="back_to_main")]
     ])
 
-    await callback.message.edit_text(profile_text, reply_markup=keyboard, parse_mode="Markdown")
-    await callback.answer()
+    try:
+        await callback.message.edit_text(profile_text, reply_markup=keyboard, parse_mode="Markdown")
+        await callback.answer("✅ Profile updated!")
+    except TelegramBadRequest as e:
+        if "message is not modified" in str(e):
+            # Content is the same, which is fine - data hasn't changed
+            await callback.answer("👤 Profile is already up to date!")
+        else:
+            # Different Telegram error, re-raise it
+            raise
+
+
+@profile_router.callback_query(F.data == "profile:main")
+@inject
+async def show_profile_callback(
+    callback: CallbackQuery,
+    user: Optional[User],
+    user_service: UserApplicationService = Provide[ApplicationContainer.user_service],
+    referral_service: ReferralApplicationService = Provide[ApplicationContainer.referral_service],
+    order_service: OrderApplicationService = Provide[ApplicationContainer.order_service]
+):
+    """Show user profile information via callback."""
+    if not user:
+        await callback.answer("❌ User not found. Please use /start first.", show_alert=True)
+        return
+
+    await _show_profile_content(callback, user, user_service, referral_service, order_service)
 
 
 @profile_router.message(Command("profile"))
@@ -157,8 +177,8 @@ async def refresh_profile(
         await callback.answer("❌ User not found. Please use /start first.", show_alert=True)
         return
 
-    # Call show_profile_callback with all required parameters
-    await show_profile_callback(callback, user, user_service, referral_service, order_service)
+    # Call internal profile content function directly
+    await _show_profile_content(callback, user, user_service, referral_service, order_service)
 
 
 @profile_router.callback_query(F.data == "profile_language")
@@ -219,14 +239,14 @@ async def set_language(
     lang_name = language_names.get(language_code, language_code)
     await callback.answer(f"✅ Language changed to {lang_name}")
     
-    # Refresh profile by calling show_profile_callback directly
+    # Refresh profile by calling internal content function directly
     # Get the required services from container
     from src.core.containers import container
     user_service = container.user_service()
     referral_service = container.referral_service()
     order_service = container.order_service()
     
-    await show_profile_callback(callback, user, user_service, referral_service, order_service)
+    await _show_profile_content(callback, user, user_service, referral_service, order_service)
 
 
 @profile_router.callback_query(F.data == "profile_referrals")
@@ -279,8 +299,16 @@ async def show_referrals(
         [InlineKeyboardButton(text="🔙 Back", callback_data="profile_refresh")]
     ])
 
-    await callback.message.edit_text(referrals_text, reply_markup=keyboard, parse_mode="Markdown")
-    await callback.answer()
+    try:
+        await callback.message.edit_text(referrals_text, reply_markup=keyboard, parse_mode="Markdown")
+        await callback.answer("✅ Referrals updated!")
+    except TelegramBadRequest as e:
+        if "message is not modified" in str(e):
+            # Content is the same, which is fine - data hasn't changed
+            await callback.answer("📊 Referrals are already up to date!")
+        else:
+            # Different Telegram error, re-raise it
+            raise
 
 
 @profile_router.callback_query(F.data == "copy_referral_link")
@@ -352,8 +380,16 @@ async def show_orders(
         [InlineKeyboardButton(text="🔙 Back", callback_data="profile_refresh")]
     ])
 
-    await callback.message.edit_text(orders_text, reply_markup=keyboard, parse_mode="Markdown")
-    await callback.answer()
+    try:
+        await callback.message.edit_text(orders_text, reply_markup=keyboard, parse_mode="Markdown")
+        await callback.answer("📦 Orders updated!")
+    except TelegramBadRequest as e:
+        if "message is not modified" in str(e):
+            # Content is the same, which is fine - data hasn't changed
+            await callback.answer("📦 Orders are already up to date!")
+        else:
+            # Different Telegram error, re-raise it
+            raise
 
 
 @profile_router.callback_query(F.data == "referral:main")
@@ -391,8 +427,16 @@ async def show_referral_callback(
         [InlineKeyboardButton(text="🔙 Back to Main", callback_data="back_to_main")]
     ])
 
-    await callback.message.edit_text(referral_text, reply_markup=keyboard, parse_mode="Markdown")
-    await callback.answer()
+    try:
+        await callback.message.edit_text(referral_text, reply_markup=keyboard, parse_mode="Markdown")
+        await callback.answer("👥 Referral info updated!")
+    except TelegramBadRequest as e:
+        if "message is not modified" in str(e):
+            # Content is the same, which is fine - data hasn't changed
+            await callback.answer("👥 Referral info is already up to date!")
+        else:
+            # Different Telegram error, re-raise it
+            raise
 
 
 @profile_router.message(Command("referral"))
