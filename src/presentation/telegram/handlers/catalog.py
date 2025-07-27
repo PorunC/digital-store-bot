@@ -21,58 +21,117 @@ catalog_router = Router(name="catalog")
 
 
 @catalog_router.callback_query(F.data == "show_catalog")
-async def show_catalog_alias(callback_query: CallbackQuery) -> None:
-    """Show catalog (alias for catalog:main) - simplified."""
-    await callback_query.answer("Debug: show_catalog called")
-    await callback_query.message.edit_text("🔧 Debug: show_catalog handler works")
+async def show_catalog_alias(callback_query: CallbackQuery, unit_of_work) -> None:
+    """Show catalog (alias for catalog:main)."""
+    await show_catalog_main(callback_query, unit_of_work)
 
 
 @catalog_router.callback_query(F.data == "catalog:main")
-async def show_catalog_main(callback_query: CallbackQuery) -> None:
-    """Show main catalog with categories - simplified."""
-    await callback_query.answer("Debug: catalog:main called")
-    await callback_query.message.edit_text("🔧 Debug: catalog:main handler works")
+async def show_catalog_main(callback_query: CallbackQuery, unit_of_work) -> None:
+    """Show main catalog with categories."""
+    try:
+        # Get container and create product repository directly
+        from src.core.containers import ApplicationContainer
+        container = ApplicationContainer()
+        product_repository_factory = container.product_repository_factory()
+        product_repository = product_repository_factory(unit_of_work.session)
+        
+        # Get all available categories
+        categories = await product_repository.get_categories()
+        
+        text = f"""
+🛍️ <b>Product Catalog</b>
+
+Browse our digital products by category:
+"""
+        
+        keyboard = _create_categories_keyboard(categories)
+        
+        await callback_query.message.edit_text(
+            text=text,
+            reply_markup=keyboard,
+            parse_mode="HTML"
+        )
+        await callback_query.answer()
+        
+    except Exception as e:
+        logger.error(f"Error showing catalog: {e}")
+        await callback_query.answer("❌ Error loading catalog")
 
 
 @catalog_router.callback_query(F.data.startswith("catalog:category:"))
-async def show_category_products(callback_query: CallbackQuery) -> None:
-    """Show products in a specific category - simplified."""
-    await callback_query.answer("Debug: category called")
-    await callback_query.message.edit_text(f"🔧 Debug: category handler works - {callback_query.data}")
+async def show_category_products(callback_query: CallbackQuery, unit_of_work) -> None:
+    """Show products in a specific category."""
+    try:
+        category_name = callback_query.data.split(":")[-1]
+        
+        # Get container and create product repository directly
+        from src.core.containers import ApplicationContainer
+        container = ApplicationContainer()
+        product_repository_factory = container.product_repository_factory()
+        product_repository = product_repository_factory(unit_of_work.session)
+        
+        # Get products by category
+        from src.domain.entities.product import ProductCategory
+        try:
+            category_enum = ProductCategory(category_name)
+            products = await product_repository.find_by_category(category_enum)
+        except ValueError:
+            # Fallback for invalid category
+            products = []
+        
+        if not products:
+            await callback_query.answer("No products found in this category")
+            return
+            
+        text = f"🏷️ <b>{category_name.title()} Products</b>\n\n"
+        keyboard = _create_products_keyboard(products, category_name)
+        
+        await callback_query.message.edit_text(
+            text=text,
+            reply_markup=keyboard,
+            parse_mode="HTML"
+        )
+        await callback_query.answer()
+        
+    except Exception as e:
+        logger.error(f"Error showing category products: {e}")
+        await callback_query.answer("❌ Error loading products")
 
 
 @catalog_router.callback_query(F.data.startswith("product:view:"))
-async def show_product_details(callback_query: CallbackQuery) -> None:
-    """Show detailed product information - simplified."""
+async def show_product_details(callback_query: CallbackQuery, unit_of_work, user) -> None:
+    """Show detailed product information."""
     try:
-        await callback_query.answer("Debug: product view called")
-        
         product_id = callback_query.data.split(":")[-1]
         
-        # Create a simple test product view with buy button
-        from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+        # Get container and create product repository directly
+        from src.core.containers import ApplicationContainer
+        container = ApplicationContainer()
+        product_repository_factory = container.product_repository_factory()
+        product_repository = product_repository_factory(unit_of_work.session)
         
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(
-                text=f"💳 Buy for $10.00 USD", 
-                callback_data=f"product:buy:{product_id}"
-            )],
-            [InlineKeyboardButton(text="🔙 Back", callback_data="catalog:main")]
-        ])
+        # Get product details
+        product = await product_repository.get_by_id(product_id)
+        
+        if not product:
+            await callback_query.answer("Product not found")
+            return
+            
+        text = _format_product_details(product, user)
+        keyboard = _create_product_details_keyboard(product, user)
         
         await callback_query.message.edit_text(
-            f"🔧 **Debug Product Details**\n\n"
-            f"Product ID: {product_id}\n"
-            f"This is a test product view.\n\n"
-            f"Try clicking the Buy button below:",
+            text=text,
             reply_markup=keyboard,
-            parse_mode="Markdown"
+            parse_mode="HTML"
         )
+        await callback_query.answer()
         
     except Exception as e:
         import traceback
         error_msg = f"❌ Error in product details: {str(e)}\n{traceback.format_exc()}"
-        print(error_msg)
+        logger.error(error_msg)
         try:
             await callback_query.answer(f"Error: {str(e)}")
         except:
